@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-labelledby="title description">
+  <title id="title">ShopHub demo placeholder — front</title>
+  <desc id="description">A neutral illustration of a box for fictional demo products.</desc>
+  <rect width="800" height="600" fill="#f3f4f6"/>
+  <rect x="230" y="140" width="340" height="260" rx="16" fill="#e5e7eb" stroke="#6b7280" stroke-width="6"/>
+  <path d="M230 220h340M365 140v80h70v-80" fill="none" stroke="#6b7280" stroke-width="6"/>
+  <rect x="275" y="300" width="110" height="45" rx="6" fill="#9ca3af"/>
+  <text x="400" y="480" text-anchor="middle" fill="#374151" font-family="Arial, sans-serif" font-size="32">ShopHub Demo</text>
+  <text x="400" y="520" text-anchor="middle" fill="#6b7280" font-family="Arial, sans-serif" font-size="20">Placeholder 01</text>
+</svg>

@@ -1,0 +1,25 @@
+# Dependencies
+**/vendor/
+**/node_modules/
+
+# Environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Build output
+/frontend/dist/
+/backend/public/build/
+/backend/public/hot/
+
+# Runtime files
+*.log
+/backend/public/storage/
+/backend/storage/*.key
+/backend/database/*.sqlite
+/backend/database/*.sqlite-*
+
+# Editor and OS
+/.idea/
+Thumbs.db
+.DS_Store

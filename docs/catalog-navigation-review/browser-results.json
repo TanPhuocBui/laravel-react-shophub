@@ -1,0 +1,17 @@
+{
+  "report": [
+    "1440px: category order/counts/all 3 actual clicks and full-catalog link pass; all header utilities visible without fake badges; account keyboard navigation, Escape/outside/selection close and 5 pending actions pass; no 404 or overflow.",
+    "390px: category order/counts/all 3 actual clicks and full-catalog link pass; all header utilities visible without fake badges; account keyboard navigation, Escape/outside/selection close and 5 pending actions pass; no 404 or overflow.",
+    "Desktop /: red Bazaar header, 2-column hero and 2 promo cards, 3 banners, 4 flash cards and 20 standard cards, local fonts/images, no horizontal overflow; CSS isolation checked.",
+    "React carousel: next, previous, dot selection update slide and category destination.",
+    "Header search submits keyword/category via Router; browser Back restores previous route.",
+    "All three category Tất cả links navigate to correct URL and show 5 matching demo products.",
+    "Product tabs: descriptions, specs, warranty, roving keyboard focus and selected panels work.",
+    "Detail click-through, gallery selection, both variant directions: SKU, VND price and stock update correctly.",
+    "List: pagination 8/7, accent-insensitive search, combined category/brand/price filters, invalid price feedback, sort, in-stock, empty state and reset.",
+    "Unknown product slug and unknown route render explicit 404 states.",
+    "Mobile 390px and 320px: all three routes fit without horizontal overflow; menu focus, Escape, category navigation and scroll restoration pass.",
+    "No uncaught runtime errors or failed HTTP asset responses during the catalog checks."
+  ],
+  "errors": []
+}

@@ -1,0 +1,127 @@
+/* Design reference: Cobalt Orbit by Aigars Silkalns / Colorlib.
+   https://preview.colorlib.com/theme/login-forms-v2.1.0/forms/cobalt-orbit/index.html */
+.storefront .account-orbit {
+  --orbit-gold: #ffce67;
+  background: radial-gradient(ellipse at 28% 45%, #1c2d50 0%, #121d33 49%, #0e1729 100%);
+  color: #fff;
+}
+.storefront .orbit-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.17fr) minmax(0, .92fr);
+  align-items: center;
+  gap: clamp(16px, 4vw, 64px);
+  padding-block: clamp(28px, 5vw, 64px);
+  min-height: 545px;
+}
+.storefront .orbit-story {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  align-items: center;
+  min-height: 435px;
+}
+.storefront .orbit-graphic {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -1;
+}
+.storefront .orbit-story-copy { padding: 20px clamp(22px, 5vw, 72px); }
+.storefront .orbit-kicker, .storefront .orbit-card-kicker {
+  display: block;
+  font-family: var(--f-mono);
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .13em;
+}
+.storefront .orbit-kicker { color: var(--orbit-gold); }
+.storefront .orbit-kicker svg { width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; }
+.storefront .orbit-kicker span { color: #fff; }
+.storefront .orbit-headline {
+  font: 800 clamp(2.8rem, 5.6vw, 5rem)/.96 var(--f-display);
+  margin: 16px 0 20px;
+  color: #fff;
+}
+.storefront .orbit-caption { color: #d0daee; margin: 0; line-height: 1.5; }
+.storefront .orbit-card {
+  justify-self: center;
+  width: 100%;
+  max-width: 462px;
+  padding: clamp(24px, 4vw, 48px);
+  background: var(--surface);
+  color: var(--ink);
+  border-radius: 24px;
+  box-shadow: 0 22px 72px #050a1490, inset 0 2px var(--orbit-gold);
+}
+.storefront .orbit-card-kicker { color: var(--slate); margin-bottom: 8px; }
+.storefront .orbit-card h1 { font-size: clamp(2rem, 3.6vw, 2.75rem); line-height: 1.05; text-wrap: balance; }
+.storefront .orbit-intro { margin: 10px 0 22px; color: var(--slate); }
+.storefront .orbit-form { display: grid; gap: 14px; }
+.storefront .orbit-field label { display: block; font-size: .92rem; font-weight: 600; margin-bottom: 5px; }
+.storefront .orbit-input { position: relative; }
+.storefront .orbit-field input {
+  display: block;
+  width: 100%;
+  min-height: 47px;
+  border: 1px solid #cbd4e0;
+  border-radius: 8px;
+  padding: 9px 12px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+.storefront .orbit-input:has(button) input { padding-right: 68px; }
+.storefront .orbit-field input[aria-invalid="true"] { border-color: #b5223b; }
+.storefront .orbit-card :is(input, button, a):focus-visible { outline: 2px solid #375baf; outline-offset: 2px; }
+.storefront .orbit-password-toggle {
+  position: absolute;
+  right: 5px;
+  inset-block: 5px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #384d75;
+  font-weight: 600;
+}
+.storefront .orbit-password-toggle:hover { background: var(--line-2); }
+.storefront .orbit-submit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  margin-top: 4px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--orbit-gold);
+  color: #182139;
+  font-size: 1rem;
+  font-weight: 700;
+  text-align: center;
+}
+.storefront .orbit-submit:hover { background: #ffda89; }
+.storefront .orbit-submit:disabled { cursor: wait; opacity: .66; }
+.storefront .orbit-submit svg { width: 18px; height: 18px; }
+.storefront .orbit-switch { margin: 20px 0 0; color: var(--slate); }
+.storefront .orbit-switch a { color: #254477; text-decoration: underline; font-weight: 700; }
+.storefront .orbit-notice { margin: 0 0 12px; padding: 9px 12px; border-radius: 7px; background: #eaf6ed; color: #175532; }
+.storefront .orbit-error { margin: 0; background: #fff0f1; color: #a51c33; }
+.storefront .orbit-field-error { margin: 4px 0 0; color: #a51c33; font-size: .85rem; }
+.storefront .orbit-profile { display: grid; gap: 12px; margin: 20px 0; }
+.storefront .orbit-profile div { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.storefront .orbit-profile dt { color: var(--slate); font-size: .85rem; }
+.storefront .orbit-profile dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
+
+@media (max-width: 720px) {
+  .storefront .orbit-grid { grid-template-columns: 1fr; gap: 8px; min-height: auto; padding-block: 12px 32px; }
+  .storefront .orbit-story { min-height: 165px; }
+  .storefront .orbit-story-copy { width: 100%; max-width: 462px; margin-inline: auto; padding: 10px 16px; }
+  .storefront .orbit-graphic { left: auto; width: min(65%, 270px); }
+  .storefront .orbit-headline { font-size: clamp(2rem, 8vw, 3rem); margin: 8px 0; }
+  .storefront .orbit-caption { display: none; }
+  .storefront .orbit-card { border-radius: 16px; }
+}

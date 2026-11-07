@@ -1,11 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import Icon from './Icon';
-
-// App.jsx currently has no auth, order lookup, wishlist or cart routes.
-// Replace these pending actions with links when their real pages are implemented.
-const accountItems = ['Đăng nhập', 'Đăng ký', 'Tra cứu đơn hàng'];
+import { useAccount } from '../contexts/useAccount';
 
 export default function HeaderUtilities() {
+  const { user, logout } = useAccount();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [loggingOut, setLoggingOut] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const accountItems = user
+    ? [{ label: 'Thông tin tài khoản', to: '/account' }, { label: 'Tra cứu đơn hàng' }, { label: 'Đăng xuất', logout: true }]
+    : [{ label: 'Đăng nhập', to: '/login' }, { label: 'Đăng ký', to: '/register' }, { label: 'Tra cứu đơn hàng' }];
   const [accountOpen, setAccountOpen] = useState(false);
   const [pendingFeature, setPendingFeature] = useState('');
   const account = useRef(null);
@@ -56,6 +62,22 @@ export default function HeaderUtilities() {
     setPendingFeature(name);
   }
 
+  async function signOut() {
+    if (loggingOut) return;
+    setLoggingOut(true);
+    setLogoutError('');
+    try {
+      await logout();
+      setAccountOpen(false);
+      if (location.pathname === '/account') navigate('/', { replace: true });
+      else accountTrigger.current?.focus();
+    } catch {
+      setLogoutError('Chưa thể đăng xuất. Vui lòng thử lại.');
+    } finally {
+      setLoggingOut(false);
+    }
+  }
+
   function triggerKey(event) {
     if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
     event.preventDefault();
@@ -81,18 +103,29 @@ export default function HeaderUtilities() {
         <button
           ref={accountTrigger} className="hact" type="button" aria-label="Tài khoản"
           aria-haspopup="menu" aria-expanded={accountOpen} aria-controls="account-menu"
-          onClick={() => { initialItem.current = 0; setAccountOpen(!accountOpen); }} onKeyDown={triggerKey}
+          onClick={() => { initialItem.current = 0; setLogoutError(''); setAccountOpen(!accountOpen); }} onKeyDown={triggerKey}
         ><Icon name="user" /><span className="hact-txt">Tài khoản</span></button>
         {accountOpen && (
           <div className="account-menu" id="account-menu" role="menu" aria-label="Tài khoản">
-            {accountItems.map((name, index) => (
-              <button
-                key={name} type="button" role="menuitem" tabIndex={-1}
-                ref={(element) => { menuItems.current[index] = element; }}
-                onKeyDown={(event) => menuKey(event, index)}
-                onClick={() => showPending(name, accountTrigger.current)}
-              >{name}</button>
-            ))}
+            {user && <span className="account-menu-name" role="presentation">{user.name}</span>}
+            {accountItems.map(({ label, to, logout: logoutItem }, index) => {
+              const itemProps = {
+                role: 'menuitem',
+                tabIndex: -1,
+                ref: (element) => { menuItems.current[index] = element; },
+                onKeyDown: (event) => menuKey(event, index),
+              };
+              return to ? (
+                <Link key={label} {...itemProps} to={to} onClick={() => setAccountOpen(false)}>{label}</Link>
+              ) : (
+                <button
+                  key={label} {...itemProps} type="button"
+                  aria-disabled={logoutItem && loggingOut ? true : undefined}
+                  onClick={logoutItem ? signOut : () => showPending(label, accountTrigger.current)}
+                >{logoutItem && loggingOut ? 'Đang đăng xuất…' : label}</button>
+              );
+            })}
+            {logoutError && <span className="account-menu-error" role="alert">{logoutError}</span>}
           </div>
         )}
       </div>

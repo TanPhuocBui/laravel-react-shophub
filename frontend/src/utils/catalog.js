@@ -30,8 +30,8 @@ export function filterProducts(products, params) {
       && (!category || product.category_slug === category)
       && (!brand || product.brand.slug === brand)
       && variant.sale_price >= min && variant.sale_price <= max
-      && (!params.has('promotion') || product.variants.some((item) => item.is_active && item.sale_price < item.list_price))
-      && (!params.has('in_stock') || product.variants.some((item) => item.is_active && item.stock_quantity > 0));
+      && (params.get('promotion') !== '1' || product.variants.some((item) => item.is_active && item.sale_price < item.list_price))
+      && (params.get('in_stock') !== '1' || product.variants.some((item) => item.is_active && item.stock_quantity > 0));
   });
   switch (params.get('sort')) {
     case 'price_asc': return result.sort((a, b) => getCardVariant(a).sale_price - getCardVariant(b).sale_price);

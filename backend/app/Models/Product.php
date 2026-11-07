@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -65,5 +66,16 @@ class Product extends Model
     public function images(): HasMany
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order')->orderBy('id');
+    }
+
+    public function specificationValues(): HasMany
+    {
+        return $this->hasMany(ProductSpecificationValue::class);
+    }
+
+    public function specifications(): BelongsToMany
+    {
+        return $this->belongsToMany(Specification::class, 'product_specification_values')
+            ->withPivot('value')->withTimestamps();
     }
 }

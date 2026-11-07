@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Category extends Model
@@ -48,5 +49,12 @@ class Category extends Model
     public function products(): HasMany
     {
         return $this->hasMany(Product::class);
+    }
+
+    public function specifications(): BelongsToMany
+    {
+        return $this->belongsToMany(Specification::class, 'category_specification')
+            ->using(CategorySpecification::class)->withPivot(['is_required', 'sort_order'])
+            ->withTimestamps()->orderByPivot('sort_order')->orderBy('specifications.id');
     }
 }

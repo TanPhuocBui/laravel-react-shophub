@@ -2,6 +2,14 @@
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\PublicCatalogController;
+
+Route::prefix('public')->group(function () {
+    Route::get('/categories', [PublicCatalogController::class, 'categories']);
+    Route::get('/brands', [PublicCatalogController::class, 'brands']);
+    Route::get('/products', [PublicCatalogController::class, 'products']);
+    Route::get('/products/{slug}', [PublicCatalogController::class, 'product']);
+});
 
 Route::get('/health', function () {
     return response()->json([

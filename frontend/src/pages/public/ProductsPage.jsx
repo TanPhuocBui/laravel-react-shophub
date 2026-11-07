@@ -1,25 +1,27 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import CatalogStatus from '../../components/CatalogStatus';
 import ProductCard from '../../components/ProductCard';
 import Icon from '../../components/Icon';
-import { filterProducts } from '../../utils/catalog';
-
-const PAGE_SIZE = 8;
+import useCatalog from '../../hooks/useCatalog';
+import { getProducts } from '../../services/catalogService';
 
 export default function ProductsPage() {
   const catalog = useOutletContext();
   const [params, setParams] = useSearchParams();
+  const query = params.toString();
+  const loader = useCallback((options) => getProducts(new URLSearchParams(query), options), [query]);
+  const listing = useCatalog(catalog.data ? loader : null);
   const [error, setError] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(() => window.matchMedia('(min-width: 641px)').matches);
   const formError = error?.query === params.toString() ? error.message : '';
   if (!catalog.data) return <CatalogStatus {...catalog} />;
-  const { categories, brands, products } = catalog.data;
+  if (!listing.data) return <CatalogStatus {...listing} />;
+  const { categories, brands } = catalog.data;
   const category = categories.find((item) => item.slug === params.get('category'));
-  const filtered = filterProducts(products, params);
-  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const page = Math.min(pages, Math.max(1, Number.parseInt(params.get('page'), 10) || 1));
-  const visible = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+  const { products: visible, meta } = listing.data;
+  const pages = meta.last_page;
+  const page = meta.current_page;
   function applyFilters(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -51,7 +53,7 @@ export default function ProductsPage() {
           <h1>{category?.name || 'Tất cả sản phẩm'}</h1>
           <p>Tìm lựa chọn phù hợp với bạn.</p>
         </div>
-        <span className="result-total">{filtered.length} sản phẩm</span>
+        <span className="result-total">{meta.total} sản phẩm</span>
       </div>
       <div className="catalog-layout">
         <aside className="filter-sidebar">
@@ -89,11 +91,11 @@ export default function ProductsPage() {
                 <p id="price-error" className="field-error" role="alert">{formError}</p>
               </fieldset>
               <label className="check-label">
-                <input type="checkbox" name="in_stock" value="1" defaultChecked={params.has('in_stock')} />
+                <input type="checkbox" name="in_stock" value="1" defaultChecked={params.get('in_stock') === '1'} />
                 Chỉ sản phẩm còn hàng
               </label>
               <label className="check-label">
-                <input type="checkbox" name="promotion" value="1" defaultChecked={params.has('promotion')} />
+                <input type="checkbox" name="promotion" value="1" defaultChecked={params.get('promotion') === '1'} />
                 Đang khuyến mãi
               </label>
               <button className="btn-bz" type="submit">Áp dụng bộ lọc<Icon name="arrow" /></button>
@@ -129,8 +131,8 @@ export default function ProductsPage() {
           </div>
           <p className="results-summary" role="status">
             {params.get('q') && <>Kết quả cho “{params.get('q')}” · </>}
-            {filtered.length
-              ? `Hiển thị ${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, filtered.length)} / ${filtered.length} sản phẩm`
+            {visible.length
+              ? `Hiển thị ${meta.from}–${meta.to} / ${meta.total} sản phẩm`
               : 'Không tìm thấy sản phẩm phù hợp'}
           </p>
           {visible.length ? (
@@ -141,6 +143,7 @@ export default function ProductsPage() {
             <div className="state-panel empty-state">
               <Icon name="search" /><h2>Chưa tìm thấy sản phẩm</h2>
               <p>Thử từ khóa khác hoặc điều chỉnh bộ lọc.</p>
+              {meta.total > 0 && <p>Trang này không có sản phẩm. Hãy chọn lại trang đầu.</p>}
               <Link className="btn-bz" to="/products">Xem tất cả sản phẩm</Link>
             </div>
           )}
@@ -155,7 +158,7 @@ export default function ProductsPage() {
                   aria-current={page === index + 1 ? 'page' : undefined} aria-label={`Trang ${index + 1}`}
                 >{index + 1}</button>
               ))}
-              <button disabled={page === pages} onClick={() => goToPage(page + 1)} aria-label="Trang tiếp theo">
+              <button disabled={page >= pages} onClick={() => goToPage(page + 1)} aria-label="Trang tiếp theo">
                 <Icon name="chevron" />
               </button>
             </nav>

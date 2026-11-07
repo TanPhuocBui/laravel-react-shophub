@@ -1,4 +1,6 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
+import useCatalog from '../../hooks/useCatalog';
+import { getProductDetail, isDemoCatalog } from '../../services/catalogService';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import CatalogStatus from '../../components/CatalogStatus';
 import ProductMedia from '../../components/ProductMedia';
@@ -19,6 +21,7 @@ function DetailContent({ product, category, related }) {
   const image = product.images[imageIndex];
   if (!variant) return <NotFoundPage product />;
   const discount = getDiscount(variant);
+  const warrantyLabel = product.warranty_months == null ? 'Chưa có thông tin' : `${product.warranty_months} tháng`;
   function tabKey(event, index) {
     let next;
     if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
@@ -44,17 +47,17 @@ function DetailContent({ product, category, related }) {
         <section className="pdp-grid" aria-label="Chi tiết sản phẩm">
           <div className="pdp-gallery">
             <div className="gallery-main">
-              {discount > 0 && <span className="tag tag-red gm-badge">−{discount}% · Giá demo</span>}
-              <ProductMedia key={`${product.slug}-${imageIndex}`} product={product} view={image.view} label={image.alt} />
+              {discount > 0 && <span className="tag tag-red gm-badge">−{discount}%{isDemoCatalog ? ' · Giá demo' : ''}</span>}
+              <ProductMedia key={`${product.slug}-${imageIndex}`} product={product} image={image} view={image.view} label={image.alt} />
             </div>
             <div className="gallery-thumbs" role="group" aria-label="Bộ ảnh sản phẩm">
               {product.images.map((item, index) => (
                 <button key={item.id} type="button" aria-label={`Xem hình ${index + 1}`} aria-current={index === imageIndex ? 'true' : 'false'} aria-pressed={index === imageIndex} onClick={() => setImageIndex(index)}>
-                  <ProductMedia product={product} view={item.view} label={item.alt} showCaption={false} />
+                  <ProductMedia product={product} image={item} view={item.view} label={item.alt} showCaption={false} />
                 </button>
               ))}
             </div>
-            <p className="gallery-caption">{imageIndex + 1} / {product.images.length} · Ảnh tham khảo dòng máy hoặc hình minh họa; chưa có ảnh đúng SKU demo.</p>
+            <p className="gallery-caption">{imageIndex + 1} / {product.images.length} · {isDemoCatalog ? 'Ảnh tham khảo dòng máy hoặc hình minh họa.' : 'Ảnh sản phẩm; sử dụng placeholder khi ảnh chưa có hoặc không tải được.'}</p>
           </div>
           <div className="pdp-info">
             <span className="pdp-cat">{category.name} · {product.brand.name}</span>
@@ -65,7 +68,7 @@ function DetailContent({ product, category, related }) {
                 <span className={`instock stock-label ${variant.stock_quantity > 0 ? '' : 'sold-out'}`}><Icon name={variant.stock_quantity > 0 ? 'check' : 'close'} />{variant.stock_quantity > 0 ? `Còn hàng (${variant.stock_quantity})` : 'Tạm hết hàng'}</span>
               </div>
               <div className="pdp-price"><span className="now">{formatPrice(variant.sale_price)}</span>{discount > 0 && <><s>{formatPrice(variant.list_price)}</s><span className="tag tag-red save">Tiết kiệm {formatPrice(variant.list_price - variant.sale_price)}</span></>}</div>
-              <p className="pdp-installment">Giá VND trong dữ liệu demo · Phiên bản <b>{variant.name}</b></p>
+              <p className="pdp-installment">Giá VND{isDemoCatalog ? ' trong dữ liệu demo' : ''} · Phiên bản <b>{variant.name}</b></p>
             </div>
             <p className="pdp-lead">{product.short_description}</p>
             {variants.length > 1 && (
@@ -83,9 +86,9 @@ function DetailContent({ product, category, related }) {
             </div>
             <p className="browse-note">Bản xem trước catalog. Chức năng đặt hàng chưa được triển khai.</p>
             <div className="pdp-assure">
-              <div className="pa"><Icon name="shield" /><span><b>Bảo hành minh họa</b>{product.warranty_months} tháng (dữ liệu demo)</span></div>
+              <div className="pa"><Icon name="shield" /><span><b>Bảo hành</b>{warrantyLabel}</span></div>
               <div className="pa"><Icon name="check" /><span><b>Giá theo phiên bản</b>SKU và giá cập nhật khi chọn</span></div>
-              <div className="pa"><Icon name="chip" /><span><b>Thông số rõ ràng</b>Cấu hình dùng để minh họa UI</span></div>
+              <div className="pa"><Icon name="chip" /><span><b>Thông số sản phẩm</b>{product.specs.length ? 'Xem chi tiết trong tab thông số' : 'Đang cập nhật'}</span></div>
               <div className="pa"><Icon name="home" /><span><b>Khám phá tự do</b>Chưa mở bán và thanh toán</span></div>
             </div>
           </div>
@@ -99,14 +102,14 @@ function DetailContent({ product, category, related }) {
             <ul className="feat-list">{product.specs.slice(0, 4).map(([label, value]) => <li key={label}><Icon name="check" /><span><strong>{label}:</strong> {value}</span></li>)}</ul>
           </div>
           <div className={`tab-panel ${tab === 'specs' ? 'active' : ''}`} id="panel-specs" role="tabpanel" aria-labelledby="tab-specs" hidden={tab !== 'specs'} tabIndex={0}>
-            <h2>Thông số kỹ thuật</h2><p>Thông số dưới đây là dữ liệu giả lập phục vụ giao diện.</p>
-            <table className="spec-table"><tbody>{product.specs.map(([label, value]) => <tr key={label}><th scope="row">{label}</th><td>{value}</td></tr>)}<tr><th scope="row">Bảo hành</th><td>{product.warranty_months} tháng (demo)</td></tr></tbody></table>
+            <h2>Thông số kỹ thuật</h2>
+            {product.specs.length ? <table className="spec-table"><tbody>{product.specs.map(([label, value]) => <tr key={label}><th scope="row">{label}</th><td>{value}</td></tr>)}</tbody></table> : <p role="status">Thông số kỹ thuật đang được cập nhật.</p>}
           </div>
           <div className={`tab-panel ${tab === 'warranty' ? 'active' : ''}`} id="panel-warranty" role="tabpanel" aria-labelledby="tab-warranty" hidden={tab !== 'warranty'} tabIndex={0}>
-            <h2>Bảo hành & lưu ý</h2><p>Bảo hành minh họa: <strong>{product.warranty_months} tháng</strong>. Đây chưa phải chính sách bán hàng thực tế.</p><p>Giá, tồn kho và cấu hình dùng để kiểm tra giao diện. Ảnh tham khảo có thể khác model, màu và cấu hình của SKU demo; ảnh còn thiếu được ghi rõ trên khung hình.</p><p>ShopHub hiện phục vụ duyệt catalog; chưa tiếp nhận đơn hàng, thanh toán hay yêu cầu bảo hành.</p>
+            <h2>Bảo hành & lưu ý</h2><p>Thời hạn bảo hành: <strong>{warrantyLabel}</strong>.</p>{isDemoCatalog && <p>Giá, tồn kho và cấu hình của bản demo dùng để kiểm tra giao diện.</p>}<p>ShopHub hiện phục vụ duyệt catalog; chưa tiếp nhận đơn hàng, thanh toán hay yêu cầu bảo hành.</p>
           </div>
           <div className={`tab-panel ${tab === 'reviews' ? 'active' : ''}`} id="panel-reviews" role="tabpanel" aria-labelledby="tab-reviews" hidden={tab !== 'reviews'} tabIndex={0}>
-            <h2>Đánh giá sản phẩm</h2><p>Catalog demo chưa cung cấp dữ liệu đánh giá. Điểm số và nhận xét mẫu của Bazaar không được dùng làm đánh giá thực tế cho sản phẩm này.</p>
+            <h2>Đánh giá sản phẩm</h2><p>Chưa có dữ liệu đánh giá sản phẩm.</p>
           </div>
         </section>
       </div>
@@ -118,9 +121,11 @@ function DetailContent({ product, category, related }) {
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const catalog = useOutletContext();
+  const loader = useCallback((options) => getProductDetail(slug, options), [slug]);
+  const detail = useCatalog(catalog.data ? loader : null);
   if (!catalog.data) return <CatalogStatus {...catalog} />;
-  const product = catalog.data.products.find((item) => item.slug === slug);
-  if (!product) return <NotFoundPage product />;
-  const category = catalog.data.categories.find((item) => item.slug === product.category_slug);
-  return <DetailContent key={product.slug} product={product} category={category} related={catalog.data.products.filter((item) => item.category_slug === product.category_slug && item.id !== product.id).slice(0, 5)} />;
+  if (detail.status === 404) return <NotFoundPage product />;
+  if (!detail.data) return <CatalogStatus {...detail} />;
+  const { product, related } = detail.data;
+  return <DetailContent key={product.slug} product={product} category={product.category} related={related} />;
 }

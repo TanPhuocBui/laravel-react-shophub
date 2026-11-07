@@ -88,7 +88,7 @@ export default function PublicLayout() {
     <div className="storefront">
       <a className="skip-link" href="#main">Đến nội dung chính</a>
       <Header key={`${location.pathname}${location.search}`} categories={categories} />
-      <div className="demo-notice"><div className="wrap"><span className="demo-dot" /><span>{catalogSource === 'demo' ? 'Bản xem trước · Sản phẩm, giá, tồn kho và thông số là dữ liệu demo. Chưa hỗ trợ đặt hàng.' : 'Catalog chưa được nối dữ liệu.'}</span></div></div>
+      <div className="demo-notice"><div className="wrap"><span className="demo-dot" /><span>{catalogSource === 'demo' ? 'Bản xem trước · Sản phẩm, giá, tồn kho và thông số là dữ liệu demo. Chưa hỗ trợ đặt hàng.' : 'Catalog công khai · Chức năng đặt hàng đang được phát triển.'}</span></div></div>
       <main id="main" className="main-content" ref={main} tabIndex={-1}><Outlet context={catalog} /></main>
       <StorefrontFooter categories={categories} brands={catalog.data?.brands || []} />
       <button className={`back-top ${backTop ? 'show' : ''}`} onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })} aria-label="Về đầu trang"><Icon name="arrow" /></button>

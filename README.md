@@ -19,6 +19,7 @@ Dự án website thương mại điện tử sử dụng Laravel REST API và Re
 - Đã cấu hình database và chạy migration.
 - Đã tạo API GET /api/health.
 - Đã triển khai migration/model và seeder dữ liệu demo cho nhóm sản phẩm.
+- Đã nối giao diện React với API catalog công khai: danh mục, thương hiệu, tìm kiếm/lọc/phân trang và chi tiết biến thể.
 - Các chức năng bán hàng đang trong quá trình phát triển.
 
 ## Chạy backend
@@ -54,7 +55,7 @@ Kiểm thử seeder bằng database SQLite trong bộ nhớ, độc lập với 
 php artisan test --compact --filter=ProductCatalogSeederTest
 ```
 
-Cần extension PHP `pdo_sqlite` để chạy nhóm test này. Kết quả chạy thực tế trên MariaDB local và các giới hạn kiểm tra được ghi trong [báo cáo seeder sản phẩm](docs/shophub-product-catalog-seeding-report.md).
+Cần extension PHP `pdo_sqlite` để chạy nhóm test này. Kết quả chạy thực tế trên MariaDB local và các giới hạn kiểm tra được ghi trong [báo cáo seeder sản phẩm](docs/report/shophub-product-catalog-seeding-report.md).
 
 ## Chạy frontend
 
@@ -73,9 +74,30 @@ Frontend dùng giao diện chuyển từ **Bazaar** (uiCookies), thay lựa ch�
 - `/products/:slug`: bộ hình minh họa, SKU, giá VND, biến thể, tồn hàng và thông số.
 - `/connection`: giữ trang kiểm tra `/api/health` qua Axios hiện có.
 
-**Catalog hiện là demo UI, chưa nối database.** Backend chưa có API catalog. Fixture riêng nằm ở `frontend/src/data/demoCatalog.js`, không lấy các sản phẩm `draft` từ seeder và không sửa dữ liệu backend. Giá, tồn, thông số và hình minh họa không phải thông tin chào bán thật. Chưa có giỏ hàng hoặc đặt hàng trong giao diện này.
+**Catalog mặc định dùng API Laravel.** Chỉ hiển thị sản phẩm active, chưa xóa mềm, có danh mục/thương hiệu active và ít nhất một biến thể active. Các sản phẩm draft từ `ProductCatalogSeeder` tiếp tục bị ẩn. Chưa có giỏ hàng hoặc đặt hàng trong giao diện này.
 
-`VITE_CATALOG_SOURCE=demo` trong `frontend/.env.example` chọn nguồn demo; khi chưa đặt biến này, nguồn mặc định cũng là demo để có thể xem giao diện ngay. Giá trị khác sẽ hiển thị trạng thái chưa có dữ liệu, không gọi endpoint catalog giả hoặc tự chuyển sang demo khi API lỗi. Khi có API, cập nhật `frontend/src/services/catalogService.js` để dùng Axios chung và thay phần lọc/phân trang demo theo contract đã thống nhất.
+Đặt `VITE_CATALOG_SOURCE=api` và `VITE_BACKEND_URL=http://localhost:8000` trong `frontend/.env`, rồi khởi động lại Vite/build lại. `.env.example` đã cấu hình API; nếu `.env` cũ của bạn còn `demo`, đổi sang `api` để xem database. Chỉ chọn rõ `VITE_CATALOG_SOURCE=demo` mới chạy fixture tại `frontend/src/data/demoCatalog.js`. Khi API lỗi, giao diện báo lỗi và cho thử lại, không tự chuyển demo.
+
+API đọc: `/api/public/categories`, `/api/public/brands`, `/api/public/products`, `/api/public/products/{slug}`. Xem [contract API](docs/api/public-catalog.md) và [kết quả triển khai/kiểm thử](docs/report/shophub-public-catalog-api-report.md).
+
+Để có dữ liệu active trên database local đã migrate, có thể chạy riêng trong `backend/`:
+
+```bash
+php artisan db:seed --class=PublicCatalogDemoSeeder
+```
+
+Seeder mới chỉ chạy local/testing, tạo tối đa 12 sản phẩm `public-demo-*` với ảnh placeholder; chạy lại giữ giá/tồn/trạng thái đã có, không chuyển sản phẩm draft cũ sang active, không được gọi mặc định bởi DatabaseSeeder. Chỉ chạy trên database local bạn chủ động chọn để demo; không cần chạy nếu đã có sản phẩm công khai. Môi trường chỉ có draft sẽ hiển thị catalog rỗng đúng quy tắc.
+
+Thông số kỹ thuật dùng cấu hình danh mục và giá trị text riêng cho từng sản phẩm. Trong `backend/`, sau khi xác minh database local:
+
+```bash
+php artisan migrate
+# Nếu chưa có đủ bộ public-demo-*:
+php artisan db:seed --class=PublicCatalogDemoSeeder
+php artisan db:seed --class=PublicCatalogSpecificationSeeder
+```
+
+Seeder thông số chỉ chạy local/testing, tạo dữ liệu demo phù hợp ba nhóm hàng, kiểm tra danh mục và giữ giá trị đã chỉnh khi chạy lại. API chi tiết trả `{name, value}`, đơn vị đã được ghép một lần ở backend; tab Thông số hiện dữ liệu hoặc trạng thái đang cập nhật nếu chưa có giá trị hợp lệ. Xem [báo cáo thông số](docs/report/shophub-catalog-specifications-report.md) và [ảnh kiểm tra API thật](docs/catalog-specifications-review/README.md).
 
 Kiểm tra bản build trong `frontend/`:
 
@@ -84,9 +106,9 @@ npm run build
 npm run preview -- --host localhost --port 4173 --strictPort
 ```
 
-Mở `http://localhost:4173`, hoặc xem chi tiết file thay đổi, kết quả kiểm tra và checklist local tại [báo cáo tích hợp Bazaar](docs/shophub-catalog-bazaar-integration-report.md).
+Mở `http://localhost:4173`, hoặc xem chi tiết file thay đổi, kết quả kiểm tra và checklist local tại [báo cáo tích hợp Bazaar](docs/report/shophub-catalog-bazaar-integration-report.md).
 
-Giao diện đã được dựng lại sát khung Bazaar: hero hai cột và ưu đãi phụ, typography gốc phục vụ local, gallery lớn, tabs chi tiết và footer nhiều tầng. CSS template được giới hạn dưới `.storefront`. Xem [báo cáo chỉnh giao diện](docs/shophub-catalog-bazaar-restyling-report.md) và [ảnh Bazaar / trước / sau](docs/catalog-bazaar-review/README.md). Ảnh đúng SKU vẫn còn thiếu; giao diện phân biệt ảnh tham khảo dòng máy và placeholder.
+Giao diện đã được dựng lại sát khung Bazaar: hero hai cột và ưu đãi phụ, typography gốc phục vụ local, gallery lớn, tabs chi tiết và footer nhiều tầng. CSS template được giới hạn dưới `.storefront`. Xem [báo cáo chỉnh giao diện](docs/report/shophub-catalog-bazaar-restyling-report.md) và [ảnh Bazaar / trước / sau](docs/catalog-bazaar-review/README.md). Ảnh đúng SKU vẫn còn thiếu; nguồn API dùng đúng URL ảnh được trả về hoặc placeholder. Xem thêm [ảnh API thật ở desktop/mobile, catalog rỗng và backend offline](docs/catalog-api-review/README.md).
 
 ## Địa chỉ local
 

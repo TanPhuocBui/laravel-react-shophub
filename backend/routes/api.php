@@ -23,3 +23,6 @@ Route::get('/health', function () {
 Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware(['auth:sanctum', EnsureAccountIsActive::class]);
+
+Route::get('/admin/access', fn () => response()->noContent())
+    ->middleware(['auth:sanctum', 'can:access-admin']);

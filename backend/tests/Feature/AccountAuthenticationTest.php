@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
 class AccountAuthenticationTest extends TestCase
@@ -78,19 +77,16 @@ class AccountAuthenticationTest extends TestCase
 
     public function test_only_active_admins_can_pass_admin_authorization(): void
     {
-        Route::middleware(['api', 'auth:sanctum', 'can:access-admin'])
-            ->get('/api/test-admin', fn () => response()->noContent());
-
         $customer = User::factory()->create();
         $admin = User::factory()->create(['role' => 'admin']);
 
-        $this->getJson('/api/test-admin')->assertUnauthorized();
-        $this->actingAs($customer, 'web')->getJson('/api/test-admin')->assertForbidden();
+        $this->getJson('/api/admin/access')->assertUnauthorized();
+        $this->actingAs($customer, 'web')->getJson('/api/admin/access')->assertForbidden();
         $this->app['auth']->forgetGuards();
-        $this->actingAs($admin, 'web')->getJson('/api/test-admin')->assertNoContent();
+        $this->actingAs($admin, 'web')->getJson('/api/admin/access')->assertNoContent();
 
         $admin->forceFill(['is_active' => false])->save();
-        $this->getJson('/api/test-admin')->assertForbidden();
+        $this->getJson('/api/admin/access')->assertForbidden();
         $this->getJson('/api/user')->assertForbidden();
         $this->postJson('/logout')->assertNoContent();
         $this->postJson('/login', ['email' => $admin->email, 'password' => 'password'])

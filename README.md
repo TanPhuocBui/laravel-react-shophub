@@ -133,6 +133,32 @@ Mở `http://localhost:4173`, hoặc xem chi tiết file thay đổi, kết qu�
 
 Giao diện đã được dựng lại sát khung Bazaar: hero hai cột và ưu đãi phụ, typography gốc phục vụ local, gallery lớn, tabs chi tiết và footer nhiều tầng. CSS template được giới hạn dưới `.storefront`. Xem [báo cáo chỉnh giao diện](docs/report/shophub-catalog-bazaar-restyling-report.md) và [ảnh Bazaar / trước / sau](docs/catalog-bazaar-review/README.md). Ảnh đúng SKU vẫn còn thiếu; nguồn API dùng đúng URL ảnh được trả về hoặc placeholder. Xem thêm [ảnh API thật ở desktop/mobile, catalog rỗng và backend offline](docs/catalog-api-review/README.md).
 
+## Quản trị danh mục và thương hiệu (T02)
+
+Sau khi đăng nhập bằng admin đang hoạt động, mở **Tài khoản → Quản trị catalog**
+hoặc `/admin/categories`. Menu **Danh mục** và **Thương hiệu** hỗ trợ xem, tìm,
+lọc trạng thái, phân trang, thêm, sửa và ẩn có xác nhận. Sửa trạng thái để mở lại.
+Form danh mục chọn cha, loại chính nó và hậu duệ; backend kiểm tra lại để chặn
+vòng lặp. Ẩn chỉ đổi `is_active`, giữ dữ liệu và các liên kết.
+
+T02 dùng schema hiện có, không có migration hoặc tài khoản admin mặc định mới.
+API dùng lại Sanctum session/cookie và Gate T00. Không cho customer vào Admin;
+frontend có thông báo chưa đăng nhập/thiếu quyền, API vẫn kiểm tra quyền độc lập.
+
+Xem [contract API Admin](docs/api/admin-catalog.md) và
+[báo cáo T02](docs/report/RP-T02-admin-catalog-foundation.md).
+
+Kiểm thử nhanh backend với database SQLite trong bộ nhớ cách ly:
+
+```bash
+php artisan test --compact --filter=AdminCatalogTest
+```
+
+Kiểm tra MariaDB và trình duyệt thật: xem quy trình database riêng trong báo cáo.
+Script `frontend/scripts/t02-admin-catalog-review.mjs` không tạo screenshot,
+chỉ nhận database kiểm thử mới đã migrate và tạo mật khẩu test ngẫu nhiên trong
+bộ nhớ. Không chạy helper seeder trên database đang sử dụng.
+
 ## Địa chỉ local
 
 - Backend: http://localhost:8000

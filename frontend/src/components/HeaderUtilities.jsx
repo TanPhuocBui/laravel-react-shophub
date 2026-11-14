@@ -10,7 +10,7 @@ export default function HeaderUtilities() {
   const [loggingOut, setLoggingOut] = useState(false);
   const [logoutError, setLogoutError] = useState('');
   const accountItems = user
-    ? [{ label: 'Thông tin tài khoản', to: '/account' }, { label: 'Tra cứu đơn hàng' }, { label: 'Đăng xuất', logout: true }]
+    ? [{ label: 'Thông tin tài khoản', to: '/account' }, ...(user.role === 'admin' && user.is_active ? [{ label: 'Quản trị catalog', to: '/admin/categories' }] : []), { label: 'Tra cứu đơn hàng' }, { label: 'Đăng xuất', logout: true }]
     : [{ label: 'Đăng nhập', to: '/login' }, { label: 'Đăng ký', to: '/register' }, { label: 'Tra cứu đơn hàng' }];
   const [accountOpen, setAccountOpen] = useState(false);
   const [pendingFeature, setPendingFeature] = useState('');

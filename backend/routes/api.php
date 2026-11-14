@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Api\PublicCatalogController;
@@ -21,4 +22,7 @@ Route::get('/health', function () {
 
 Route::get('/user', function (Request $request) {
     return $request->user();
-})->middleware('auth:sanctum');
+})->middleware(['auth:sanctum', EnsureAccountIsActive::class]);
+
+Route::get('/admin/access', fn () => response()->noContent())
+    ->middleware(['auth:sanctum', 'can:access-admin']);

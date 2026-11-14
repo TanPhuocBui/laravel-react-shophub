@@ -75,7 +75,9 @@ export default function PublicLayout() {
   const [backTop, setBackTop] = useState(false);
   const categories = catalog.data?.categories || [];
   useEffect(() => {
-    document.title = location.pathname.startsWith('/products') ? 'Sản phẩm | ShopHub' : 'ShopHub | Công nghệ & Cuộc sống';
+    const accountTitles = { '/login': 'Đăng nhập', '/register': 'Đăng ký', '/account': 'Tài khoản' };
+    const title = accountTitles[location.pathname] || (location.pathname.startsWith('/products') ? 'Sản phẩm' : null);
+    document.title = title ? `${title} | ShopHub` : 'ShopHub | Công nghệ & Cuộc sống';
     main.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });
   }, [location.pathname, location.search]);

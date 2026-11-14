@@ -302,9 +302,11 @@
 .storefront .header-utilities { position: relative; }
 .storefront .account-dropdown { position: relative; }
 .storefront .account-menu { position: absolute; top: calc(100% + 12px); right: 0; width: 224px; padding: 6px; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 10; }
-.storefront .account-menu button { width: 100%; text-align: left; padding: 12px 14px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: 500 .85rem/1.4 var(--f-body); }
-.storefront .account-menu button:hover, .storefront .account-menu button:focus-visible { background: var(--teal-tint); color: var(--teal-deep); }
-.storefront .account-menu button:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.storefront .account-menu :is(button, a) { width: 100%; text-align: left; padding: 12px 14px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: 500 .85rem/1.4 var(--f-body); }
+.storefront .account-menu :is(button, a):is(:hover, :focus-visible) { background: var(--teal-tint); color: var(--teal-deep); }
+.storefront .account-menu :is(button, a):focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
+.storefront .account-menu-name { padding: 8px 14px; font-weight: 700; overflow-wrap: anywhere; }
+.storefront .account-menu-error { margin: 4px; padding: 8px; border-radius: 5px; background: #fff0f1; color: #a51c33; font-size: .82rem; }
 .storefront .feature-pending { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); color: var(--ink); background: #fff; box-shadow: var(--shadow-lg); }
 .storefront .feature-pending:not([open]) { display: none; }
 .storefront .feature-pending::backdrop { background: #17202e88; }

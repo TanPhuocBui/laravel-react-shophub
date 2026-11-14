@@ -65,6 +65,29 @@ Trong thư mục frontend:
 2. Sao chép .env.example thành .env.
 3. Chạy npm run dev -- --host localhost --port 5173 --strictPort.
 
+## Tài khoản và phân quyền (T00)
+
+Chạy `php artisan migrate` trong `backend/` để bổ sung `phone`, `role` và
+`is_active` cho bảng `users`. Tài khoản đăng ký qua cửa hàng có quyền `customer`.
+
+Mở frontend tại `http://localhost:5173` và chạy backend tại
+`http://localhost:8000`. Dùng `localhost` cho cả hai địa chỉ để Sanctum nhận
+cookie phiên. Nếu đang dùng cấu hình cũ, kiểm tra `VITE_BACKEND_URL` và
+`CORS_ALLOWED_ORIGINS` theo các file `.env.example`. Nếu đã khai báo
+`SANCTUM_STATEFUL_DOMAINS`, danh sách phải chứa `localhost:5173`. Sau khi sửa
+cấu hình, chạy `php artisan config:clear` và khởi động lại các ứng dụng.
+
+Vào **Tài khoản → Đăng ký**, đăng nhập bằng tài khoản vừa tạo, tải lại trang,
+mở **Thông tin tài khoản** rồi đăng xuất. Catalog vẫn mở được sau khi đăng xuất.
+`GET /api/admin/access` trả `204` cho admin đang hoạt động, `401` cho khách
+chưa đăng nhập và `403` cho customer hoặc admin đã bị khóa.
+
+Chạy nhóm kiểm thử tài khoản trong `backend/` với extension `pdo_sqlite`:
+
+```bash
+php artisan test --filter=AccountAuthenticationTest
+```
+
 ## Giao diện catalog ShopHub
 
 Frontend dùng giao diện chuyển từ **Bazaar** (uiCookies), thay lựa chọn template Phyo Htet Arkar trước đó. Header đỏ, banner và các dải sản phẩm được điều chỉnh theo bố cục ShopHub.

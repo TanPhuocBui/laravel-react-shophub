@@ -1,0 +1,1015 @@
+diff --git a/backend/app/Models/User.php b/backend/app/Models/User.php
+index 749c7b7..d648115 100644
+--- a/backend/app/Models/User.php
++++ b/backend/app/Models/User.php
+@@ -12,6 +12,11 @@ class User extends Authenticatable
+     /** @use HasFactory<\Database\Factories\UserFactory> */
+     use HasFactory, Notifiable;
+ 
++    protected $attributes = [
++        'role' => 'customer',
++        'is_active' => true,
++    ];
++
+     /**
+      * The attributes that are mass assignable.
+      *
+@@ -43,6 +48,7 @@ protected function casts(): array
+         return [
+             'email_verified_at' => 'datetime',
+             'password' => 'hashed',
++            'is_active' => 'boolean',
+         ];
+     }
+ }
+diff --git a/backend/app/Providers/AppServiceProvider.php b/backend/app/Providers/AppServiceProvider.php
+index 452e6b6..b7e65fd 100644
+--- a/backend/app/Providers/AppServiceProvider.php
++++ b/backend/app/Providers/AppServiceProvider.php
+@@ -2,6 +2,8 @@
+ 
+ namespace App\Providers;
+ 
++use App\Models\User;
++use Illuminate\Support\Facades\Gate;
+ use Illuminate\Support\ServiceProvider;
+ 
+ class AppServiceProvider extends ServiceProvider
+@@ -19,6 +21,6 @@ public function register(): void
+      */
+     public function boot(): void
+     {
+-        //
++        Gate::define('access-admin', fn (User $user): bool => $user->is_active && $user->role === 'admin');
+     }
+ }
+diff --git a/backend/bootstrap/app.php b/backend/bootstrap/app.php
+index d654276..ae59fec 100644
+--- a/backend/bootstrap/app.php
++++ b/backend/bootstrap/app.php
+@@ -12,7 +12,7 @@
+         health: '/up',
+     )
+     ->withMiddleware(function (Middleware $middleware) {
+-        //
++        $middleware->statefulApi();
+     })
+     ->withExceptions(function (Exceptions $exceptions) {
+         //
+diff --git a/backend/config/cors.php b/backend/config/cors.php
+index 1d5d4ac..62fe2e7 100644
+--- a/backend/config/cors.php
++++ b/backend/config/cors.php
+@@ -4,6 +4,7 @@
+     'paths' => [
+         'api/*',
+         'sanctum/csrf-cookie',
++        'register',
+         'login',
+         'logout',
+     ],
+diff --git a/backend/config/sanctum.php b/backend/config/sanctum.php
+index cde73cf..afff9fb 100644
+--- a/backend/config/sanctum.php
++++ b/backend/config/sanctum.php
+@@ -20,7 +20,7 @@
+ 
+     'stateful' => explode(',', env('SANCTUM_STATEFUL_DOMAINS', sprintf(
+         '%s%s',
+-        'localhost,localhost:3000,127.0.0.1,127.0.0.1:8000,::1',
++        'localhost,localhost:3000,localhost:5173,localhost:4173,127.0.0.1,127.0.0.1:8000,::1',
+         Sanctum::currentApplicationUrlWithPort(),
+         // Sanctum::currentRequestHost(),
+     ))),
+diff --git a/backend/routes/api.php b/backend/routes/api.php
+index 5370486..0ddbdbb 100644
+--- a/backend/routes/api.php
++++ b/backend/routes/api.php
+@@ -1,5 +1,6 @@
+ <?php
+ 
++use App\Http\Middleware\EnsureAccountIsActive;
+ use Illuminate\Http\Request;
+ use Illuminate\Support\Facades\Route;
+ use App\Http\Controllers\Api\PublicCatalogController;
+@@ -21,4 +22,4 @@
+ 
+ Route::get('/user', function (Request $request) {
+     return $request->user();
+-})->middleware('auth:sanctum');
++})->middleware(['auth:sanctum', EnsureAccountIsActive::class]);
+diff --git a/backend/routes/web.php b/backend/routes/web.php
+index 86a06c5..0484d33 100644
+--- a/backend/routes/web.php
++++ b/backend/routes/web.php
+@@ -1,7 +1,12 @@
+ <?php
+ 
++use App\Http\Controllers\Api\AccountController;
+ use Illuminate\Support\Facades\Route;
+ 
+ Route::get('/', function () {
+     return view('welcome');
+ });
++
++Route::post('/register', [AccountController::class, 'register'])->middleware('throttle:8,1,account-register');
++Route::post('/login', [AccountController::class, 'login'])->middleware('throttle:30,1,account-login');
++Route::post('/logout', [AccountController::class, 'logout']);
+diff --git a/frontend/src/App.css b/frontend/src/App.css
+index 69fc76a..85f60f1 100644
+--- a/frontend/src/App.css
++++ b/frontend/src/App.css
+@@ -302,9 +302,11 @@
+ .storefront .header-utilities { position: relative; }
+ .storefront .account-dropdown { position: relative; }
+ .storefront .account-menu { position: absolute; top: calc(100% + 12px); right: 0; width: 224px; padding: 6px; display: flex; flex-direction: column; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: var(--shadow-lg); z-index: 10; }
+-.storefront .account-menu button { width: 100%; text-align: left; padding: 12px 14px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: 500 .85rem/1.4 var(--f-body); }
+-.storefront .account-menu button:hover, .storefront .account-menu button:focus-visible { background: var(--teal-tint); color: var(--teal-deep); }
+-.storefront .account-menu button:focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
++.storefront .account-menu :is(button, a) { width: 100%; text-align: left; padding: 12px 14px; border: 0; border-radius: 5px; background: transparent; color: var(--ink); font: 500 .85rem/1.4 var(--f-body); }
++.storefront .account-menu :is(button, a):is(:hover, :focus-visible) { background: var(--teal-tint); color: var(--teal-deep); }
++.storefront .account-menu :is(button, a):focus-visible { outline: 2px solid var(--teal); outline-offset: -2px; }
++.storefront .account-menu-name { padding: 8px 14px; font-weight: 700; overflow-wrap: anywhere; }
++.storefront .account-menu-error { margin: 4px; padding: 8px; border-radius: 5px; background: #fff0f1; color: #a51c33; font-size: .82rem; }
+ .storefront .feature-pending { position: fixed; inset: 0; margin: auto; width: min(440px, calc(100vw - 32px)); padding: 0; border: 1px solid var(--line); border-radius: var(--radius-lg); color: var(--ink); background: #fff; box-shadow: var(--shadow-lg); }
+ .storefront .feature-pending:not([open]) { display: none; }
+ .storefront .feature-pending::backdrop { background: #17202e88; }
+diff --git a/frontend/src/App.jsx b/frontend/src/App.jsx
+index 9d9eecb..a9ff981 100644
+--- a/frontend/src/App.jsx
++++ b/frontend/src/App.jsx
+@@ -5,19 +5,26 @@ import ProductsPage from './pages/public/ProductsPage';
+ import ProductDetailPage from './pages/public/ProductDetailPage';
+ import ConnectionPage from './pages/public/ConnectionPage';
+ import NotFoundPage from './pages/public/NotFoundPage';
++import { AccountProvider } from './contexts/AccountContext';
++import { AccountAuthPage, AccountProfilePage } from './pages/public/AccountPage';
+ import './styles/bazaar.scoped.css';
+ import './App.css';
+ 
+ export default function App() {
+   return (
+-    <Routes>
+-      <Route element={<PublicLayout />}>
+-        <Route index element={<HomePage />} />
+-        <Route path="products" element={<ProductsPage />} />
+-        <Route path="products/:slug" element={<ProductDetailPage />} />
+-        <Route path="connection" element={<ConnectionPage />} />
+-        <Route path="*" element={<NotFoundPage />} />
+-      </Route>
+-    </Routes>
++    <AccountProvider>
++      <Routes>
++        <Route element={<PublicLayout />}>
++          <Route index element={<HomePage />} />
++          <Route path="products" element={<ProductsPage />} />
++          <Route path="products/:slug" element={<ProductDetailPage />} />
++          <Route path="login" element={<AccountAuthPage key="login" />} />
++          <Route path="register" element={<AccountAuthPage key="register" register />} />
++          <Route path="account" element={<AccountProfilePage />} />
++          <Route path="connection" element={<ConnectionPage />} />
++          <Route path="*" element={<NotFoundPage />} />
++        </Route>
++      </Routes>
++    </AccountProvider>
+   );
+ }
+diff --git a/frontend/src/components/HeaderUtilities.jsx b/frontend/src/components/HeaderUtilities.jsx
+index 89ce9c4..424129d 100644
+--- a/frontend/src/components/HeaderUtilities.jsx
++++ b/frontend/src/components/HeaderUtilities.jsx
+@@ -1,11 +1,17 @@
+ import { useEffect, useRef, useState } from 'react';
++import { Link, useLocation, useNavigate } from 'react-router-dom';
+ import Icon from './Icon';
+-
+-// App.jsx currently has no auth, order lookup, wishlist or cart routes.
+-// Replace these pending actions with links when their real pages are implemented.
+-const accountItems = ['Đăng nhập', 'Đăng ký', 'Tra cứu đơn hàng'];
++import { useAccount } from '../contexts/useAccount';
+ 
+ export default function HeaderUtilities() {
++  const { user, logout } = useAccount();
++  const location = useLocation();
++  const navigate = useNavigate();
++  const [loggingOut, setLoggingOut] = useState(false);
++  const [logoutError, setLogoutError] = useState('');
++  const accountItems = user
++    ? [{ label: 'Thông tin tài khoản', to: '/account' }, { label: 'Tra cứu đơn hàng' }, { label: 'Đăng xuất', logout: true }]
++    : [{ label: 'Đăng nhập', to: '/login' }, { label: 'Đăng ký', to: '/register' }, { label: 'Tra cứu đơn hàng' }];
+   const [accountOpen, setAccountOpen] = useState(false);
+   const [pendingFeature, setPendingFeature] = useState('');
+   const account = useRef(null);
+@@ -56,6 +62,22 @@ export default function HeaderUtilities() {
+     setPendingFeature(name);
+   }
+ 
++  async function signOut() {
++    if (loggingOut) return;
++    setLoggingOut(true);
++    setLogoutError('');
++    try {
++      await logout();
++      setAccountOpen(false);
++      if (location.pathname === '/account') navigate('/', { replace: true });
++      else accountTrigger.current?.focus();
++    } catch {
++      setLogoutError('Chưa thể đăng xuất. Vui lòng thử lại.');
++    } finally {
++      setLoggingOut(false);
++    }
++  }
++
+   function triggerKey(event) {
+     if (!['ArrowDown', 'ArrowUp'].includes(event.key)) return;
+     event.preventDefault();
+@@ -81,18 +103,29 @@ export default function HeaderUtilities() {
+         <button
+           ref={accountTrigger} className="hact" type="button" aria-label="Tài khoản"
+           aria-haspopup="menu" aria-expanded={accountOpen} aria-controls="account-menu"
+-          onClick={() => { initialItem.current = 0; setAccountOpen(!accountOpen); }} onKeyDown={triggerKey}
++          onClick={() => { initialItem.current = 0; setLogoutError(''); setAccountOpen(!accountOpen); }} onKeyDown={triggerKey}
+         ><Icon name="user" /><span className="hact-txt">Tài khoản</span></button>
+         {accountOpen && (
+           <div className="account-menu" id="account-menu" role="menu" aria-label="Tài khoản">
+-            {accountItems.map((name, index) => (
+-              <button
+-                key={name} type="button" role="menuitem" tabIndex={-1}
+-                ref={(element) => { menuItems.current[index] = element; }}
+-                onKeyDown={(event) => menuKey(event, index)}
+-                onClick={() => showPending(name, accountTrigger.current)}
+-              >{name}</button>
+-            ))}
++            {user && <span className="account-menu-name" role="presentation">{user.name}</span>}
++            {accountItems.map(({ label, to, logout: logoutItem }, index) => {
++              const itemProps = {
++                role: 'menuitem',
++                tabIndex: -1,
++                ref: (element) => { menuItems.current[index] = element; },
++                onKeyDown: (event) => menuKey(event, index),
++              };
++              return to ? (
++                <Link key={label} {...itemProps} to={to} onClick={() => setAccountOpen(false)}>{label}</Link>
++              ) : (
++                <button
++                  key={label} {...itemProps} type="button"
++                  aria-disabled={logoutItem && loggingOut ? true : undefined}
++                  onClick={logoutItem ? signOut : () => showPending(label, accountTrigger.current)}
++                >{logoutItem && loggingOut ? 'Đang đăng xuất…' : label}</button>
++              );
++            })}
++            {logoutError && <span className="account-menu-error" role="alert">{logoutError}</span>}
+           </div>
+         )}
+       </div>
+diff --git a/frontend/src/layouts/PublicLayout.jsx b/frontend/src/layouts/PublicLayout.jsx
+index cc1d23b..27fbe89 100644
+--- a/frontend/src/layouts/PublicLayout.jsx
++++ b/frontend/src/layouts/PublicLayout.jsx
+@@ -75,7 +75,9 @@ export default function PublicLayout() {
+   const [backTop, setBackTop] = useState(false);
+   const categories = catalog.data?.categories || [];
+   useEffect(() => {
+-    document.title = location.pathname.startsWith('/products') ? 'Sản phẩm | ShopHub' : 'ShopHub | Công nghệ & Cuộc sống';
++    const accountTitles = { '/login': 'Đăng nhập', '/register': 'Đăng ký', '/account': 'Tài khoản' };
++    const title = accountTitles[location.pathname] || (location.pathname.startsWith('/products') ? 'Sản phẩm' : null);
++    document.title = title ? `${title} | ShopHub` : 'ShopHub | Công nghệ & Cuộc sống';
+     main.current?.focus({ preventScroll: true });
+     window.scrollTo({ top: 0, behavior: 'instant' });
+   }, [location.pathname, location.search]);
+diff --git a/backend/app/Http/Controllers/Api/AccountController.php b/backend/app/Http/Controllers/Api/AccountController.php
+new file mode 100644
+index 0000000..f43eb80
+--- /dev/null
++++ b/backend/app/Http/Controllers/Api/AccountController.php
+@@ -0,0 +1,58 @@
++<?php
++
++namespace App\Http\Controllers\Api;
++
++use App\Http\Requests\LoginAccountRequest;
++use App\Http\Requests\RegisterAccountRequest;
++use App\Models\User;
++use Illuminate\Database\UniqueConstraintViolationException;
++use Illuminate\Http\JsonResponse;
++use Illuminate\Http\Request;
++use Illuminate\Http\Response;
++use Illuminate\Support\Facades\Auth;
++use Illuminate\Support\Facades\RateLimiter;
++use Illuminate\Validation\ValidationException;
++
++class AccountController
++{
++    public function register(RegisterAccountRequest $request): JsonResponse
++    {
++        try {
++            User::create($request->validated());
++        } catch (UniqueConstraintViolationException) {
++            throw ValidationException::withMessages(['email' => 'Email này đã được đăng ký.']);
++        }
++
++        return response()->json(['message' => 'Đăng ký thành công. Bạn có thể đăng nhập.'], 201);
++    }
++
++    public function login(LoginAccountRequest $request): JsonResponse
++    {
++        $credentials = $request->validated();
++        $key = 'account-login:'.hash('sha256', $credentials['email'].'|'.$request->ip());
++
++        if (RateLimiter::tooManyAttempts($key, 5)) {
++            return response()->json(['message' => 'Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.'], 429)
++                ->header('Retry-After', (string) RateLimiter::availableIn($key));
++        }
++
++        if (! Auth::guard('web')->attemptWhen($credentials, fn (User $user) => $user->is_active)) {
++            RateLimiter::hit($key);
++            throw ValidationException::withMessages(['email' => 'Email hoặc mật khẩu không đúng.']);
++        }
++
++        RateLimiter::clear($key);
++        $request->session()->regenerate();
++
++        return response()->json($request->user());
++    }
++
++    public function logout(Request $request): Response
++    {
++        Auth::guard('web')->logout();
++        $request->session()->invalidate();
++        $request->session()->regenerateToken();
++
++        return response()->noContent();
++    }
++}
+diff --git a/backend/app/Http/Middleware/EnsureAccountIsActive.php b/backend/app/Http/Middleware/EnsureAccountIsActive.php
+new file mode 100644
+index 0000000..4abb377
+--- /dev/null
++++ b/backend/app/Http/Middleware/EnsureAccountIsActive.php
+@@ -0,0 +1,17 @@
++<?php
++
++namespace App\Http\Middleware;
++
++use Closure;
++use Illuminate\Http\Request;
++use Symfony\Component\HttpFoundation\Response;
++
++class EnsureAccountIsActive
++{
++    public function handle(Request $request, Closure $next): Response
++    {
++        abort_unless($request->user()?->is_active, 403, 'Tài khoản đã bị khóa.');
++
++        return $next($request);
++    }
++}
+diff --git a/backend/app/Http/Requests/LoginAccountRequest.php b/backend/app/Http/Requests/LoginAccountRequest.php
+new file mode 100644
+index 0000000..dbafcb9
+--- /dev/null
++++ b/backend/app/Http/Requests/LoginAccountRequest.php
+@@ -0,0 +1,34 @@
++<?php
++
++namespace App\Http\Requests;
++
++use Illuminate\Foundation\Http\FormRequest;
++
++class LoginAccountRequest extends FormRequest
++{
++    protected function prepareForValidation(): void
++    {
++        if (is_string($this->input('email'))) {
++            $this->merge(['email' => strtolower($this->input('email'))]);
++        }
++    }
++
++    public function rules(): array
++    {
++        return [
++            'email' => ['required', 'string', 'email', 'max:255'],
++            'password' => ['required', 'string', 'max:72'],
++        ];
++    }
++
++    public function messages(): array
++    {
++        return [
++            'email.required' => 'Vui lòng nhập email.',
++            'email.email' => 'Email không đúng định dạng.',
++            'email.max' => 'Email không được vượt quá 255 ký tự.',
++            'password.required' => 'Vui lòng nhập mật khẩu.',
++            'password.max' => 'Mật khẩu không được vượt quá 72 ký tự.',
++        ];
++    }
++}
+diff --git a/backend/app/Http/Requests/RegisterAccountRequest.php b/backend/app/Http/Requests/RegisterAccountRequest.php
+new file mode 100644
+index 0000000..1230b97
+--- /dev/null
++++ b/backend/app/Http/Requests/RegisterAccountRequest.php
+@@ -0,0 +1,48 @@
++<?php
++
++namespace App\Http\Requests;
++
++use Closure;
++use Illuminate\Foundation\Http\FormRequest;
++use Illuminate\Validation\Rules\Password;
++
++class RegisterAccountRequest extends FormRequest
++{
++    protected function prepareForValidation(): void
++    {
++        if (is_string($this->input('email'))) {
++            $this->merge(['email' => strtolower($this->input('email'))]);
++        }
++    }
++
++    public function rules(): array
++    {
++        return [
++            'name' => ['required', 'string', 'max:255'],
++            'email' => ['required', 'string', 'email', 'max:255', 'unique:users,email'],
++            'password' => [
++                'bail', 'required', 'string', 'confirmed', Password::min(8),
++                function (string $attribute, string $value, Closure $fail): void {
++                    if (strlen($value) > 72 || str_contains($value, "\0")) {
++                        $fail('Mật khẩu quá dài hoặc chứa ký tự không hợp lệ.');
++                    }
++                },
++            ],
++        ];
++    }
++
++    public function messages(): array
++    {
++        return [
++            'name.required' => 'Vui lòng nhập họ và tên.',
++            'name.max' => 'Họ và tên không được vượt quá 255 ký tự.',
++            'email.required' => 'Vui lòng nhập email.',
++            'email.email' => 'Email không đúng định dạng.',
++            'email.max' => 'Email không được vượt quá 255 ký tự.',
++            'email.unique' => 'Email này đã được đăng ký.',
++            'password.required' => 'Vui lòng nhập mật khẩu.',
++            'password.min' => 'Mật khẩu phải có ít nhất 8 ký tự.',
++            'password.confirmed' => 'Mật khẩu xác nhận không khớp.',
++        ];
++    }
++}
+diff --git a/backend/database/migrations/2026_11_07_180000_add_account_fields_to_users_table.php b/backend/database/migrations/2026_11_07_180000_add_account_fields_to_users_table.php
+new file mode 100644
+index 0000000..feb10f5
+--- /dev/null
++++ b/backend/database/migrations/2026_11_07_180000_add_account_fields_to_users_table.php
+@@ -0,0 +1,24 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    public function up(): void
++    {
++        Schema::table('users', function (Blueprint $table): void {
++            $table->string('phone', 20)->nullable();
++            $table->string('role', 20)->default('customer');
++            $table->boolean('is_active')->default(true);
++        });
++    }
++
++    public function down(): void
++    {
++        Schema::table('users', function (Blueprint $table): void {
++            $table->dropColumn(['phone', 'role', 'is_active']);
++        });
++    }
++};
+diff --git a/backend/tests/Feature/AccountAuthenticationTest.php b/backend/tests/Feature/AccountAuthenticationTest.php
+new file mode 100644
+index 0000000..6cdd4dc
+--- /dev/null
++++ b/backend/tests/Feature/AccountAuthenticationTest.php
+@@ -0,0 +1,99 @@
++<?php
++
++namespace Tests\Feature;
++
++use App\Models\User;
++use Illuminate\Support\Facades\DB;
++use Illuminate\Support\Facades\Hash;
++use Illuminate\Support\Facades\Route;
++use Tests\TestCase;
++
++class AccountAuthenticationTest extends TestCase
++{
++    protected function setUp(): void
++    {
++        parent::setUp();
++
++        config([
++            'app.key' => 'base64:'.base64_encode(random_bytes(32)),
++            'database.connections.account_test' => [
++                'driver' => 'sqlite',
++                'database' => ':memory:',
++                'prefix' => '',
++                'foreign_key_constraints' => true,
++            ],
++        ]);
++        DB::setDefaultConnection('account_test');
++        self::assertSame(':memory:', DB::connection()->getDatabaseName());
++        $this->artisan('migrate', ['--database' => 'account_test'])->assertSuccessful();
++        $this->withHeader('Origin', 'http://localhost:5173');
++    }
++
++    public function test_registration_creates_a_customer_and_rejects_duplicate_email(): void
++    {
++        $payload = [
++            'name' => 'Khách ShopHub',
++            'email' => 'SHOP@example.com',
++            'password' => 'ShopHub-test-123',
++            'password_confirmation' => 'ShopHub-test-123',
++            'role' => 'admin',
++            'is_active' => false,
++        ];
++
++        $this->postJson('/register', $payload)->assertCreated();
++        $this->assertGuest();
++        $user = User::where('email', 'shop@example.com')->firstOrFail();
++        self::assertSame('customer', $user->role);
++        self::assertTrue($user->is_active);
++        self::assertTrue(Hash::check($payload['password'], $user->password));
++        $this->postJson('/register', $payload)->assertUnprocessable()->assertJsonValidationErrors('email');
++    }
++
++    public function test_login_returns_the_account_and_logout_ends_the_session(): void
++    {
++        $user = User::factory()->create();
++
++        $this->getJson('/api/user')->assertUnauthorized();
++        $this->postJson('/login', ['email' => $user->email, 'password' => 'wrong-password'])
++            ->assertUnprocessable()->assertJsonValidationErrors('email');
++        $this->postJson('/login', ['email' => $user->email, 'password' => 'password'])
++            ->assertOk()->assertJsonPath('id', $user->id)->assertJsonMissingPath('password');
++        $this->assertAuthenticatedAs($user, 'web');
++        $this->getJson('/api/user')->assertOk()->assertJsonPath('role', 'customer');
++        $this->postJson('/logout')->assertNoContent();
++        $this->assertGuest('web');
++        $this->app['auth']->forgetGuards();
++        $this->getJson('/api/user')->assertUnauthorized();
++        $this->getJson('/api/public/categories')->assertOk();
++    }
++
++    public function test_repeated_invalid_credentials_are_throttled(): void
++    {
++        $payload = ['email' => 'missing@example.com', 'password' => 'wrong-password'];
++        for ($attempt = 0; $attempt < 5; $attempt++) {
++            $this->postJson('/login', $payload)->assertUnprocessable();
++        }
++        $this->postJson('/login', $payload)->assertTooManyRequests()->assertHeader('Retry-After');
++    }
++
++    public function test_only_active_admins_can_pass_admin_authorization(): void
++    {
++        Route::middleware(['api', 'auth:sanctum', 'can:access-admin'])
++            ->get('/api/test-admin', fn () => response()->noContent());
++
++        $customer = User::factory()->create();
++        $admin = User::factory()->create(['role' => 'admin']);
++
++        $this->getJson('/api/test-admin')->assertUnauthorized();
++        $this->actingAs($customer, 'web')->getJson('/api/test-admin')->assertForbidden();
++        $this->app['auth']->forgetGuards();
++        $this->actingAs($admin, 'web')->getJson('/api/test-admin')->assertNoContent();
++
++        $admin->forceFill(['is_active' => false])->save();
++        $this->getJson('/api/test-admin')->assertForbidden();
++        $this->getJson('/api/user')->assertForbidden();
++        $this->postJson('/logout')->assertNoContent();
++        $this->postJson('/login', ['email' => $admin->email, 'password' => 'password'])
++            ->assertUnprocessable()->assertJsonValidationErrors('email');
++    }
++}
+diff --git a/frontend/src/contexts/AccountContext.jsx b/frontend/src/contexts/AccountContext.jsx
+new file mode 100644
+index 0000000..331d71e
+--- /dev/null
++++ b/frontend/src/contexts/AccountContext.jsx
+@@ -0,0 +1,49 @@
++import { useEffect, useState } from 'react';
++import { AccountContext } from './useAccount';
++import { getAccount, loginAccount, logoutAccount } from '../services/accountService';
++
++export function AccountProvider({ children }) {
++  const [user, setUser] = useState(null);
++  const [checking, setChecking] = useState(true);
++  const [unavailable, setUnavailable] = useState(false);
++  const [attempt, setAttempt] = useState(0);
++
++  useEffect(() => {
++    const controller = new AbortController();
++    getAccount(controller.signal)
++      .then(setUser)
++      .catch((error) => {
++        const status = error.response?.status;
++        if (!controller.signal.aborted && status !== 401 && status !== 403) {
++          setUnavailable(true);
++        }
++      })
++      .finally(() => {
++        if (!controller.signal.aborted) setChecking(false);
++      });
++    return () => controller.abort();
++  }, [attempt]);
++
++  function retry() {
++    setChecking(true);
++    setUnavailable(false);
++    setAttempt((current) => current + 1);
++  }
++
++  async function login(fields) {
++    const account = await loginAccount(fields);
++    setUser(account);
++    setUnavailable(false);
++  }
++
++  async function logout() {
++    await logoutAccount();
++    setUser(null);
++  }
++
++  return (
++    <AccountContext.Provider value={{ user, checking, unavailable, retry, login, logout }}>
++      {children}
++    </AccountContext.Provider>
++  );
++}
+diff --git a/frontend/src/contexts/useAccount.js b/frontend/src/contexts/useAccount.js
+new file mode 100644
+index 0000000..0833cce
+--- /dev/null
++++ b/frontend/src/contexts/useAccount.js
+@@ -0,0 +1,7 @@
++import { createContext, useContext } from 'react';
++
++export const AccountContext = createContext(null);
++
++export function useAccount() {
++  return useContext(AccountContext);
++}
+diff --git a/frontend/src/pages/public/AccountPage.jsx b/frontend/src/pages/public/AccountPage.jsx
+new file mode 100644
+index 0000000..6b21696
+--- /dev/null
++++ b/frontend/src/pages/public/AccountPage.jsx
+@@ -0,0 +1,185 @@
++import { useState } from 'react';
++import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
++import Icon from '../../components/Icon';
++import { useAccount } from '../../contexts/useAccount';
++import { registerAccount } from '../../services/accountService';
++import '../../styles/account-orbit.css';
++
++function AccountLayout({ children }) {
++  return (
++    <section className="account-orbit">
++      <div className="orbit-grid wrap">
++        <div className="orbit-story" aria-hidden="true">
++          <svg viewBox="0 0 550 480" className="orbit-graphic" focusable="false">
++            <defs>
++              <radialGradient id="orbit-glow" cx=".45" cy=".4" r=".65">
++                <stop stopColor="#263b68" />
++                <stop offset="1" stopColor="#101a30" />
++              </radialGradient>
++            </defs>
++            <circle cx="265" cy="246" r="176" fill="url(#orbit-glow)" />
++            <g fill="none" stroke="#b9caff" strokeOpacity=".34">
++              <circle cx="265" cy="246" r="190" strokeDasharray="2 7" />
++              <ellipse cx="265" cy="246" rx="244" ry="114" transform="rotate(22 265 246)" />
++              <ellipse cx="265" cy="246" rx="232" ry="130" transform="rotate(-22 265 246)" />
++              <ellipse cx="265" cy="246" rx="160" ry="225" transform="rotate(22 265 246)" />
++            </g>
++            <circle cx="171" cy="76" r="4" fill="#ffce67" />
++            <circle cx="476" cy="178" r="6" fill="#ffce67" />
++            <circle cx="69" cy="308" r="3" fill="#a9bded" />
++            <circle cx="346" cy="405" r="4" fill="#ffce67" />
++          </svg>
++          <div className="orbit-story-copy">
++            <span className="orbit-kicker"><Icon name="bag" /> SHOP<span>HUB</span> / TÀI KHOẢN</span>
++            <p className="orbit-headline">Công nghệ hay.<br />Mua sắm dễ.</p>
++            <p className="orbit-caption">Laptop, linh kiện và đồ gia dụng<br />cho công việc và cuộc sống.</p>
++          </div>
++        </div>
++        <div className="orbit-card">{children}</div>
++      </div>
++    </section>
++  );
++}
++
++function AccountField({ name, label, error, togglePassword, type = 'text', ...props }) {
++  const [visible, setVisible] = useState(false);
++
++  return (
++    <div className="orbit-field">
++      <label htmlFor={name}>{label}</label>
++      <div className="orbit-input">
++        <input
++          id={name} name={name} type={visible ? 'text' : type} required
++          aria-invalid={Boolean(error)} aria-describedby={error ? `${name}-error` : undefined}
++          {...props}
++        />
++        {togglePassword && (
++          <button
++            type="button" className="orbit-password-toggle" onClick={() => setVisible(!visible)}
++            aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
++          >{visible ? 'Ẩn' : 'Hiện'}</button>
++        )}
++      </div>
++      {error && <p className="orbit-field-error" id={`${name}-error`}>{error}</p>}
++    </div>
++  );
++}
++
++export function AccountAuthPage({ register = false }) {
++  const { user, checking, login } = useAccount();
++  const navigate = useNavigate();
++  const location = useLocation();
++  const [busy, setBusy] = useState(false);
++  const [errors, setErrors] = useState({});
++  const [message, setMessage] = useState('');
++
++  if (user) return <Navigate replace to="/account" />;
++
++  async function submit(event) {
++    event.preventDefault();
++    if (busy || checking) return;
++    const fields = Object.fromEntries(new FormData(event.currentTarget));
++    setErrors({});
++    setMessage('');
++
++    if (register && fields.password !== fields.password_confirmation) {
++      setErrors({ password_confirmation: 'Mật khẩu xác nhận không khớp.' });
++      return;
++    }
++
++    setBusy(true);
++    try {
++      if (register) {
++        await registerAccount(fields);
++        navigate('/login', { replace: true, state: { registered: true, email: fields.email.trim() } });
++      } else {
++        await login(fields);
++        navigate('/account', { replace: true });
++      }
++    } catch (error) {
++      const { status, data } = error.response ?? {};
++      if (status === 422 && data?.errors) {
++        setErrors(Object.fromEntries(Object.entries(data.errors).map(([field, messages]) => [field, messages[0]])));
++        setMessage('Vui lòng kiểm tra thông tin bên dưới.');
++      } else if (status === 429) {
++        setMessage('Bạn đã thử quá nhiều lần. Vui lòng thử lại sau.');
++      } else if (status === 419) {
++        setMessage('Phiên xác thực đã hết hạn. Vui lòng gửi lại biểu mẫu.');
++      } else {
++        setMessage('Chưa thể kết nối với ShopHub. Vui lòng thử lại.');
++      }
++    } finally {
++      setBusy(false);
++    }
++  }
++
++  const title = register ? 'Tạo tài khoản' : 'Chào mừng bạn trở lại';
++
++  return (
++    <AccountLayout>
++      <span className="orbit-card-kicker">TÀI KHOẢN SHOPHUB</span>
++      <h1>{title}</h1>
++      <p className="orbit-intro">{register ? 'Tạo tài khoản để bắt đầu mua sắm tại ShopHub.' : 'Đăng nhập để tiếp tục mua sắm tại ShopHub.'}</p>
++      {!register && location.state?.registered && (
++        <p className="orbit-notice" role="status">Đăng ký thành công. Bạn có thể đăng nhập ngay.</p>
++      )}
++      <form className="orbit-form" onSubmit={submit} aria-busy={busy}>
++        {message && <p className="orbit-notice orbit-error" role="alert">{message}</p>}
++        {register && <AccountField name="name" label="Họ và tên" autoComplete="name" maxLength={255} error={errors.name} />}
++        <AccountField
++          name="email" label="Email" type="email" autoComplete="email" maxLength={255}
++          defaultValue={register ? undefined : location.state?.email} error={errors.email}
++        />
++        <AccountField
++          name="password" label="Mật khẩu" type="password" togglePassword
++          autoComplete={register ? 'new-password' : 'current-password'}
++          minLength={register ? 8 : undefined} maxLength={72} error={errors.password}
++        />
++        {register && (
++          <AccountField
++            name="password_confirmation" label="Xác nhận mật khẩu" type="password" togglePassword
++            autoComplete="new-password" maxLength={72} error={errors.password_confirmation}
++          />
++        )}
++        <button className="orbit-submit" type="submit" disabled={busy || checking}>
++          {busy || checking ? 'Đang xử lý…' : register ? 'Đăng ký' : 'Đăng nhập'}
++          <Icon name="arrow" />
++        </button>
++      </form>
++      <p className="orbit-switch">
++        {register ? 'Bạn đã có tài khoản?' : 'Bạn chưa có tài khoản?'}{' '}
++        <Link to={register ? '/login' : '/register'}>{register ? 'Đăng nhập' : 'Đăng ký'}</Link>
++      </p>
++    </AccountLayout>
++  );
++}
++
++export function AccountProfilePage() {
++  const { user, checking, unavailable, retry } = useAccount();
++
++  if (!checking && !unavailable && !user) return <Navigate replace to="/login" />;
++
++  return (
++    <AccountLayout>
++      <span className="orbit-card-kicker">TÀI KHOẢN SHOPHUB</span>
++      <h1>Thông tin tài khoản</h1>
++      {checking && <p className="orbit-intro" role="status">Đang kiểm tra phiên đăng nhập…</p>}
++      {unavailable && (
++        <>
++          <p className="orbit-intro" role="alert">Chưa thể tải thông tin tài khoản.</p>
++          <button className="orbit-submit" type="button" onClick={retry}>Thử lại</button>
++        </>
++      )}
++      {user && (
++        <>
++          <dl className="orbit-profile">
++            <div><dt>Họ và tên</dt><dd>{user.name}</dd></div>
++            <div><dt>Email</dt><dd>{user.email}</dd></div>
++            <div><dt>Vai trò</dt><dd>{user.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}</dd></div>
++          </dl>
++          <Link className="orbit-submit" to="/products">Tiếp tục mua sắm <Icon name="arrow" /></Link>
++        </>
++      )}
++    </AccountLayout>
++  );
++}
+diff --git a/frontend/src/services/accountService.js b/frontend/src/services/accountService.js
+new file mode 100644
+index 0000000..f4acf26
+--- /dev/null
++++ b/frontend/src/services/accountService.js
+@@ -0,0 +1,22 @@
++import api from '../api/axios';
++
++export async function getAccount(signal) {
++  const response = await api.get('/api/user', { signal });
++  return response.data;
++}
++
++export async function registerAccount(fields) {
++  await api.get('/sanctum/csrf-cookie');
++  await api.post('/register', fields);
++}
++
++export async function loginAccount(fields) {
++  await api.get('/sanctum/csrf-cookie');
++  const response = await api.post('/login', fields);
++  return response.data;
++}
++
++export async function logoutAccount() {
++  await api.get('/sanctum/csrf-cookie');
++  await api.post('/logout');
++}
+diff --git a/frontend/src/styles/account-orbit.css b/frontend/src/styles/account-orbit.css
+new file mode 100644
+index 0000000..72a705e
+--- /dev/null
++++ b/frontend/src/styles/account-orbit.css
+@@ -0,0 +1,127 @@
++/* Design reference: Cobalt Orbit by Aigars Silkalns / Colorlib.
++   https://preview.colorlib.com/theme/login-forms-v2.1.0/forms/cobalt-orbit/index.html */
++.storefront .account-orbit {
++  --orbit-gold: #ffce67;
++  background: radial-gradient(ellipse at 28% 45%, #1c2d50 0%, #121d33 49%, #0e1729 100%);
++  color: #fff;
++}
++.storefront .orbit-grid {
++  display: grid;
++  grid-template-columns: minmax(0, 1.17fr) minmax(0, .92fr);
++  align-items: center;
++  gap: clamp(16px, 4vw, 64px);
++  padding-block: clamp(28px, 5vw, 64px);
++  min-height: 545px;
++}
++.storefront .orbit-story {
++  position: relative;
++  isolation: isolate;
++  display: grid;
++  align-items: center;
++  min-height: 435px;
++}
++.storefront .orbit-graphic {
++  position: absolute;
++  inset: 0;
++  width: 100%;
++  height: 100%;
++  z-index: -1;
++}
++.storefront .orbit-story-copy { padding: 20px clamp(22px, 5vw, 72px); }
++.storefront .orbit-kicker, .storefront .orbit-card-kicker {
++  display: block;
++  font-family: var(--f-mono);
++  font-size: .72rem;
++  font-weight: 600;
++  letter-spacing: .13em;
++}
++.storefront .orbit-kicker { color: var(--orbit-gold); }
++.storefront .orbit-kicker svg { width: 16px; height: 16px; margin-right: 8px; vertical-align: -3px; }
++.storefront .orbit-kicker span { color: #fff; }
++.storefront .orbit-headline {
++  font: 800 clamp(2.8rem, 5.6vw, 5rem)/.96 var(--f-display);
++  margin: 16px 0 20px;
++  color: #fff;
++}
++.storefront .orbit-caption { color: #d0daee; margin: 0; line-height: 1.5; }
++.storefront .orbit-card {
++  justify-self: center;
++  width: 100%;
++  max-width: 462px;
++  padding: clamp(24px, 4vw, 48px);
++  background: var(--surface);
++  color: var(--ink);
++  border-radius: 24px;
++  box-shadow: 0 22px 72px #050a1490, inset 0 2px var(--orbit-gold);
++}
++.storefront .orbit-card-kicker { color: var(--slate); margin-bottom: 8px; }
++.storefront .orbit-card h1 { font-size: clamp(2rem, 3.6vw, 2.75rem); line-height: 1.05; text-wrap: balance; }
++.storefront .orbit-intro { margin: 10px 0 22px; color: var(--slate); }
++.storefront .orbit-form { display: grid; gap: 14px; }
++.storefront .orbit-field label { display: block; font-size: .92rem; font-weight: 600; margin-bottom: 5px; }
++.storefront .orbit-input { position: relative; }
++.storefront .orbit-field input {
++  display: block;
++  width: 100%;
++  min-height: 47px;
++  border: 1px solid #cbd4e0;
++  border-radius: 8px;
++  padding: 9px 12px;
++  background: #fff;
++  color: var(--ink);
++  font: inherit;
++}
++.storefront .orbit-input:has(button) input { padding-right: 68px; }
++.storefront .orbit-field input[aria-invalid="true"] { border-color: #b5223b; }
++.storefront .orbit-card :is(input, button, a):focus-visible { outline: 2px solid #375baf; outline-offset: 2px; }
++.storefront .orbit-password-toggle {
++  position: absolute;
++  right: 5px;
++  inset-block: 5px;
++  padding: 0 9px;
++  border: 0;
++  border-radius: 5px;
++  background: transparent;
++  color: #384d75;
++  font-weight: 600;
++}
++.storefront .orbit-password-toggle:hover { background: var(--line-2); }
++.storefront .orbit-submit {
++  display: flex;
++  align-items: center;
++  justify-content: center;
++  gap: 10px;
++  width: 100%;
++  min-height: 48px;
++  margin-top: 4px;
++  padding: 10px 14px;
++  border: 0;
++  border-radius: 8px;
++  background: var(--orbit-gold);
++  color: #182139;
++  font-size: 1rem;
++  font-weight: 700;
++  text-align: center;
++}
++.storefront .orbit-submit:hover { background: #ffda89; }
++.storefront .orbit-submit:disabled { cursor: wait; opacity: .66; }
++.storefront .orbit-submit svg { width: 18px; height: 18px; }
++.storefront .orbit-switch { margin: 20px 0 0; color: var(--slate); }
++.storefront .orbit-switch a { color: #254477; text-decoration: underline; font-weight: 700; }
++.storefront .orbit-notice { margin: 0 0 12px; padding: 9px 12px; border-radius: 7px; background: #eaf6ed; color: #175532; }
++.storefront .orbit-error { margin: 0; background: #fff0f1; color: #a51c33; }
++.storefront .orbit-field-error { margin: 4px 0 0; color: #a51c33; font-size: .85rem; }
++.storefront .orbit-profile { display: grid; gap: 12px; margin: 20px 0; }
++.storefront .orbit-profile div { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
++.storefront .orbit-profile dt { color: var(--slate); font-size: .85rem; }
++.storefront .orbit-profile dd { margin: 2px 0 0; font-weight: 600; overflow-wrap: anywhere; }
++
++@media (max-width: 720px) {
++  .storefront .orbit-grid { grid-template-columns: 1fr; gap: 8px; min-height: auto; padding-block: 12px 32px; }
++  .storefront .orbit-story { min-height: 165px; }
++  .storefront .orbit-story-copy { width: 100%; max-width: 462px; margin-inline: auto; padding: 10px 16px; }
++  .storefront .orbit-graphic { left: auto; width: min(65%, 270px); }
++  .storefront .orbit-headline { font-size: clamp(2rem, 8vw, 3rem); margin: 8px 0; }
++  .storefront .orbit-caption { display: none; }
++  .storefront .orbit-card { border-radius: 16px; }
++}

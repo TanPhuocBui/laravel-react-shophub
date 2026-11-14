@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Controllers\Api\AdminBrandController;
+use App\Http\Controllers\Api\AdminCategoryController;
+use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\PublicCatalogController;
 
 Route::prefix('public')->group(function () {
     Route::get('/categories', [PublicCatalogController::class, 'categories']);
@@ -26,3 +28,11 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/admin/access', fn () => response()->noContent())
     ->middleware(['auth:sanctum', 'can:access-admin']);
+
+Route::prefix('admin')->name('admin.')->middleware(['auth:sanctum', 'can:access-admin'])->group(function () {
+    Route::get('categories/options', [AdminCategoryController::class, 'options'])->name('categories.options');
+    Route::apiResource('categories', AdminCategoryController::class)->except('destroy');
+    Route::patch('categories/{category}/hide', [AdminCategoryController::class, 'hide'])->name('categories.hide');
+    Route::apiResource('brands', AdminBrandController::class)->except('destroy');
+    Route::patch('brands/{brand}/hide', [AdminBrandController::class, 'hide'])->name('brands.hide');
+});

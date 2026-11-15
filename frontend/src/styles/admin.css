@@ -153,6 +153,39 @@
 .admin-shell .admin-nav-dialog .admin-sidebar { width: 100%; min-height: 100%; }
 .admin-shell .admin-mobile-nav-head { display: flex; align-items: center; justify-content: space-between; margin: -8px 0 26px; font-size: 11px; color: #d7e0ee; }
 .admin-shell .admin-mobile-nav-head button { min-height: 36px; padding: 6px; border-color: #6b7c94; color: white; background: transparent; }
+.admin-shell .product-status-draft { color: #77500c; background: #fff3d9; }
+.admin-shell .product-status-active { color: #16603c; background: #e6f4ed; }
+.admin-shell .product-status-inactive { color: #4b5563; background: #edf0f5; }
+.admin-shell .product-muted { display: block; font-size: 12px; color: var(--admin-muted); margin-top: 4px; }
+.admin-shell .product-editor { max-width: 1100px; }
+.admin-shell .product-editor > .admin-card { margin-bottom: 24px; }
+.admin-shell .product-editor .admin-form-section { padding-bottom: 24px; }
+.admin-shell .product-editor textarea { width: 100%; min-width: 0; border: 1px solid #8291a5; border-radius: 6px; padding: 11px 12px; font: inherit; color: var(--admin-ink); background: white; resize: vertical; }
+.admin-shell .product-editor .admin-field textarea[aria-invalid=true] { border-color: #bb1736; }
+.admin-shell .product-field-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.admin-shell .product-price-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.admin-shell .product-sku-row { margin-top: 20px; padding: 20px; border: 1px solid var(--admin-line); border-radius: 8px; background: #f9fbfd; min-width: 0; }
+.admin-shell .product-sku-heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
+.admin-shell .product-sku-heading h3 { margin: 0; font-size: 14px; font-weight: 600; }
+.admin-shell .product-sku-heading button { min-height: 34px; padding: 5px 10px; font-size: 12px; }
+.admin-shell .product-add-sku { margin-top: 18px; }
+.admin-shell .product-upload { margin: 18px 0; padding: 18px; border: 1px dashed #8291a5; border-radius: 8px; background: #f7f9fc; }
+.admin-shell .product-upload label { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; font-weight: 500; }
+.admin-shell .product-image-row { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 20px; padding: 18px 0; border-top: 1px solid var(--admin-line); }
+.admin-shell .product-image-row > img { width: 110px; height: 110px; object-fit: contain; border: 1px solid var(--admin-line); border-radius: 6px; background: #f7f9fc; }
+.admin-shell .product-image-fields { min-width: 0; }
+.admin-shell .product-image-fields > small { display: block; color: var(--admin-muted); overflow-wrap: anywhere; font-size: 12px; margin: 4px 0 12px; }
+.admin-shell .product-replace-label { font-size: 12px; display: grid; gap: 7px; }
+.admin-shell .product-row-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.admin-shell .product-row-actions button { font-size: 12px; padding: 6px 12px; min-height: 36px; }
+.admin-shell .product-empty-note { color: var(--admin-muted); padding: 12px 0; font-size: 13px; }
+@media (max-width: 640px) {
+  .admin-shell .product-field-grid, .admin-shell .product-price-grid { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .admin-shell .product-sku-row { padding: 16px; }
+  .admin-shell .product-image-row { grid-template-columns: 70px minmax(0, 1fr); gap: 12px; }
+  .admin-shell .product-image-row > img { width: 70px; height: 70px; }
+  .admin-shell .product-upload { padding: 12px; }
+}
 @media (max-width: 1100px) {
   .admin-shell .admin-editor-grid { grid-template-columns: minmax(0, 1fr); }
   .admin-shell .admin-context { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
@@ -181,7 +214,7 @@
   .admin-shell .admin-heading .admin-primary { justify-content: center; min-height: 44px; }
   .admin-shell .admin-filters { padding: 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; }
   .admin-shell .admin-search-field { grid-column: 1 / -1; max-width: none; }
-  .admin-shell .admin-filters label:nth-child(2) { grid-column: 1 / -1; }
+  .admin-shell .admin-filters > label { grid-column: 1 / -1; }
   .admin-shell .admin-reset { justify-content: center; padding-inline: 4px; }
   .admin-shell .admin-results-bar { padding: 14px 16px; }
   .admin-shell .admin-table-note { line-height: 1.6; }

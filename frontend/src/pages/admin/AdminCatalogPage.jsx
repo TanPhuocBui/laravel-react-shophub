@@ -2,6 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/Icon';
 import { AdminFeedback, AdminField } from '../../components/admin/AdminFeedback';
+import AdminFilterToolbar from '../../components/admin/AdminFilterToolbar';
 import AdminStatusBadge from '../../components/admin/AdminStatusBadge';
 import ConfirmHideDialog from '../../components/admin/ConfirmHideDialog';
 import useCatalog from '../../hooks/useCatalog';
@@ -70,12 +71,9 @@ export function AdminCatalogList({ kind }) {
     </div>
     {notice && <div className="admin-notice" role="status"><Icon name="check" /><span>{notice}</span><button type="button" aria-label="Đóng thông báo" onClick={() => setNotice('')}><Icon name="close" /></button></div>}
     <section className="admin-card" aria-label={'Danh sách ' + title.toLowerCase()}>
-      <form className="admin-filters" key={query} onSubmit={search}>
-        <label className="admin-search-field" htmlFor="admin-search"><span className="admin-label">Tìm kiếm</span><span className="admin-search-input"><Icon name="search" /><input id="admin-search" name="q" maxLength={150} defaultValue={params.get('q') || ''} placeholder={'Tìm tên hoặc slug ' + title.toLowerCase() + '…'} /></span></label>
-        <label htmlFor="admin-status"><span className="admin-label">Trạng thái</span><select id="admin-status" name="status" defaultValue={params.get('status') || 'all'}><option value="all">Tất cả trạng thái</option><option value="active">Hoạt động</option><option value="inactive">Đã ẩn</option></select></label>
-        <button type="submit"><Icon name="filter" />Lọc kết quả</button>
-        <Link className="admin-reset" to={base}><Icon name="close" />Xóa bộ lọc</Link>
-      </form>
+      <AdminFilterToolbar query={query} onSubmit={search} resetTo={base}
+        search={{ id: 'admin-search', value: params.get('q'), maxLength: 150, placeholder: 'Tìm tên hoặc slug ' + title.toLowerCase() + '…' }}
+        filters={[{ id: 'admin-status', name: 'status', label: 'Trạng thái', value: params.get('status') || 'all', options: [{ value: 'all', label: 'Tất cả trạng thái' }, { value: 'active', label: 'Hoạt động' }, { value: 'inactive', label: 'Đã ẩn' }] }]} />
       <AdminFeedback loading={loading} error={error} retry={request.retry}>
         {data && <>
           <div className="admin-results-bar"><p className="admin-result" role="status">{data.meta.total.toLocaleString('vi-VN')} {title.toLowerCase()}{data.data.length > 0 && <span> · Hiển thị {data.meta.from}–{data.meta.to}</span>}</p>{kind === 'categories' && <p className="admin-table-note">Danh sách theo bộ lọc và trang hiện tại, không phải toàn bộ cây.</p>}</div>

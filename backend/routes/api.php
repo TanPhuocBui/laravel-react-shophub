@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\AdminBrandController;
 use App\Http\Controllers\Api\AdminCategoryController;
+use App\Http\Controllers\Api\AdminProductController;
 use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Http\Request;
@@ -30,6 +31,8 @@ Route::get('/admin/access', fn () => response()->noContent())
     ->middleware(['auth:sanctum', 'can:access-admin']);
 
 Route::prefix('admin')->name('admin.')->middleware(['auth:sanctum', 'can:access-admin'])->group(function () {
+    Route::get('products/options', [AdminProductController::class, 'options'])->name('products.options');
+    Route::apiResource('products', AdminProductController::class)->except('destroy');
     Route::get('categories/options', [AdminCategoryController::class, 'options'])->name('categories.options');
     Route::apiResource('categories', AdminCategoryController::class)->except('destroy');
     Route::patch('categories/{category}/hide', [AdminCategoryController::class, 'hide'])->name('categories.hide');

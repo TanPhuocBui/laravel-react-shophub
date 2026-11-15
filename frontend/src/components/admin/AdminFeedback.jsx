@@ -11,12 +11,12 @@ export function AdminFeedback({ loading, error, retry, children }) {
   return children;
 }
 
-export function AdminField({ name, label, errors, children, hint, ...props }) {
+export function AdminField({ name, label, errors, children, hint, multiline = false, ...props }) {
   const error = errors?.[name]?.[0];
   const shared = { id: `field-${name}`, name, ...props, 'aria-invalid': Boolean(error), 'aria-describedby': [hint ? `hint-${name}` : '', error ? `error-${name}` : ''].filter(Boolean).join(' ') || undefined };
   return <div className="admin-field">
     <label htmlFor={shared.id}>{label}</label>
-    {children ? <select {...shared}>{children}</select> : <input {...shared} />}
+    {children ? <select {...shared}>{children}</select> : multiline ? <textarea {...shared} /> : <input {...shared} />}
     {hint && <p id={`hint-${name}`} className="admin-help">{hint}</p>}
     {error && <p id={`error-${name}`} className="admin-field-error">{error}</p>}
   </div>;

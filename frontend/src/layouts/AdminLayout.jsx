@@ -13,6 +13,7 @@ function AdminNavigation({ close }) {
       <nav aria-label="Quản trị catalog">
         <NavLink to="/admin/categories" onClick={close}><Icon name="grid" />Danh mục</NavLink>
         <NavLink to="/admin/brands" onClick={close}><Icon name="shield" />Thương hiệu</NavLink>
+        <NavLink to="/admin/products" onClick={close}><Icon name="chip" />Sản phẩm</NavLink>
       </nav>
     </div>
     <div className="admin-sidebar-footer"><Link className="admin-store-link" to="/" onClick={close}><Icon name="home" />Xem cửa hàng<Icon name="arrow" /></Link></div>
@@ -26,10 +27,11 @@ export default function AdminLayout() {
   const menu = useRef(null);
   const trigger = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const kind = location.pathname.includes('/brands') ? 'brands' : 'categories';
+  const kind = location.pathname.includes('/products') ? 'products' : location.pathname.includes('/brands') ? 'brands' : 'categories';
   const moduleTitle = adminCatalogTitle(kind);
-  const isForm = /\/(create|\d+\/edit)$/.test(location.pathname);
-  const pageTitle = isForm ? (location.pathname.endsWith('/create') ? 'Thêm ' : 'Sửa ') + moduleTitle.toLowerCase() : moduleTitle;
+  const productDetail = kind === 'products' && /\/products\/\d+$/.test(location.pathname);
+  const isForm = productDetail || /\/(create|\d+\/edit)$/.test(location.pathname);
+  const pageTitle = productDetail ? 'Chi tiết sản phẩm' : isForm ? (location.pathname.endsWith('/create') ? 'Thêm ' : 'Sửa ') + moduleTitle.toLowerCase() : moduleTitle;
   useEffect(() => {
     if (!menuOpen) return;
     const element = menu.current;

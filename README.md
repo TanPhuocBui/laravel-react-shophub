@@ -159,6 +159,31 @@ Script `frontend/scripts/t02-admin-catalog-review.mjs` không tạo screenshot,
 chỉ nhận database kiểm thử mới đã migrate và tạo mật khẩu test ngẫu nhiên trong
 bộ nhớ. Không chạy helper seeder trên database đang sử dụng.
 
+## Quản trị sản phẩm, ảnh và SKU (T03)
+
+Admin mở **Sản phẩm** ở sidebar hoặc `/admin/products`. Có tìm kiếm/phân trang,
+tạo và sửa bản nháp, upload bộ ảnh và nhiều SKU. Giá VND nguyên, tồn nguyên không
+âm; SKU đã lưu giữ ID và ngừng dùng bằng cờ Hoạt động, không xóa cứng. Draft không
+xuất hiện trên catalog public. Sản phẩm active/inactive chỉ xem trong phạm vi này.
+
+Không có migration mới hoặc thao tác công bố/ẩn sản phẩm, không cấu hình thông số.
+Ảnh runtime nằm trên public disk; route `/media/catalog/...` phục vụ ảnh nên không
+cần tạo storage symlink trên Windows. Giới hạn ứng dụng là 5 MB/ảnh, 10 ảnh; khi chạy
+PHP local cần cấu hình upload_max_filesize ≥5M và post_max_size ≥60M nếu gửi tối đa.
+
+Xem [contract sản phẩm](docs/api/admin-products.md) và
+[báo cáo T03](docs/report/RP-T03-admin-products.md). Kiểm thử riêng:
+
+```bash
+# backend/: database cách ly; không cần GD để tạo fixture PNG kiểm thử
+php artisan test --compact --filter=AdminProductTest
+# frontend/, sau khi chuẩn bị MariaDB test mới theo báo cáo:
+node scripts/t02-admin-catalog-review.mjs --products
+```
+
+Harness `--products` giữ các kiểm tra T02/T01, bổ sung T03 và lưu upload vào thư
+mục testing riêng. Không chạy trên database ShopHub đang dùng, không tạo screenshot.
+
 ## Địa chỉ local
 
 - Backend: http://localhost:8000

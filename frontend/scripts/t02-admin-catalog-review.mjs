@@ -8,6 +8,8 @@ import assert from 'node:assert/strict';
 // Real Chrome + Laravel + MariaDB. No screenshots or mocked API responses.
 // Requires a NEW migrated database created by backend/scripts/catalog-test-database.php.
 const backend = resolve('../backend');
+const productsReview = process.argv.includes('--products');
+const mediaRoot = resolve(backend, 'storage/framework/testing', 't03-media-' + Date.now());
 const metadata = JSON.parse(await readFile(resolve(backend, 'storage/framework/testing/catalog-api-database.json'), 'utf8'));
 const server = JSON.parse((await readFile(resolve(backend, 'storage/framework/testing/catalog-test-server.json'), 'utf8')).replace(/^\uFEFF/, ''));
 assert.match(metadata.database, /^shophub_catalog_api_test_[a-f0-9]{10}$/);
@@ -30,6 +32,7 @@ const env = { ...process.env, APP_ENV: 'testing', APP_DEBUG: 'false', APP_KEY: '
   DB_CONNECTION: 'mysql', DB_URL: '', DB_HOST: '127.0.0.1', DB_PORT: String(server.port), DB_DATABASE: metadata.database, DB_USERNAME: 'root', DB_PASSWORD: '',
   CATALOG_TEST_DATABASE: metadata.database, T02_TEST_PASSWORD: password, CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: `t02_${Date.now()}`,
   CORS_ALLOWED_ORIGINS: base, SANCTUM_STATEFUL_DOMAINS: `localhost:${previewPort},localhost:${apiPort}`, VITE_CATALOG_SOURCE: 'api', VITE_BACKEND_URL: apiBase };
+if (productsReview) env.CATALOG_MEDIA_ROOT = mediaRoot;
 function run(command, args, cwd) {
   const child = spawn(command, args, { cwd, env, windowsHide: true, stdio: 'pipe' });
   let log = '';
@@ -51,7 +54,7 @@ const exceptions = [];
 const mutations = [];
 let apiServer, preview, chrome, ws;
 const php = process.env.CATALOG_PHP || 'D:/xampp/php/php.exe';
-const startApi = () => run(php, ['-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
+const startApi = () => run(php, ['-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
 try {
   console.log((await completion(run(php, ['scripts/t02-browser-fixtures.php', '--accounts-only'], backend))).trim());
   await completion(run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'node_modules/.cache/t02-build'], process.cwd()));
@@ -139,11 +142,11 @@ try {
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
   await navigate('/admin/categories');
   await waitFor(() => document.body.textContent.includes('Cần đăng nhập'), 'guest guard');
-  for (const kind of ['categories', 'brands']) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 401);
+  for (const kind of ['categories', 'brands', ...(productsReview ? ['products'] : [])]) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 401);
   pass('Guest: Admin UI asks for login; both API lists return 401.');
   await login('customer'); await navigate('/admin/brands');
   await waitFor(() => document.body.textContent.includes('Không đủ quyền truy cập'), 'customer guard');
-  for (const kind of ['categories', 'brands']) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 403);
+  for (const kind of ['categories', 'brands', ...(productsReview ? ['products'] : [])]) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 403);
   pass('Customer: Admin UI denies access; both API lists return 403.');
   // Logout current test session via real T00 endpoint; never fabricate auth state.
   await evaluate(async (url) => {
@@ -383,10 +386,14 @@ try {
     }
     pass(width + 'px: both module lists/create/edit, long Vietnamese names, no page overflow, readable text contrast and visible keyboard focus; mobile menu keyboard/close/Escape work.');
   }
+  if (productsReview) {
+    const { runProductScenarios } = await import('./t03-admin-products-scenarios.mjs');
+    await runProductScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, publicApi, pass, mutations, mediaRoot });
+  }
   assert.deepEqual(exceptions, []);
   assert(network.some((entry) => entry.url.startsWith('/api/admin/categories') && entry.status === 422));
   assert(network.some((entry) => entry.url.startsWith('/api/admin/brands') && entry.status === 201));
-  await writeFile(resolve(backend, 'storage/framework/testing/t02-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: 'api', widths: [1440, 768, 390], checks, exceptions, network, mutations }, null, 2));
+  await writeFile(resolve(backend, 'storage/framework/testing/' + (productsReview ? 't03-browser-results.json' : 't02-browser-results.json')), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: 'api', widths: [1440, 768, 390], checks, exceptions, network, mutations }, null, 2));
   console.log(`PASS ${checks.length} browser scenarios; ${network.length} real API responses; no Runtime exceptions or screenshots.`);
 } finally {
   ws?.close();

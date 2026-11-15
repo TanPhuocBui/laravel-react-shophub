@@ -61,6 +61,7 @@ export function AdminProductsList() {
 
 export function AdminProductForm({ readOnly = false }) {
   const { id } = useParams();
+  const [currentStatus, setCurrentStatus] = useState(null);
   const location = useLocation();
   const loader = useCallback(async ({ signal }) => {
     try {
@@ -70,11 +71,12 @@ export function AdminProductForm({ readOnly = false }) {
   }, [id]);
   const request = useCatalog(loader);
   const returnTo = catalogReturnTo('products', location.state);
+  const status = currentStatus && currentStatus.id === id ? currentStatus.status : request.data?.record.status || 'draft';
   return <>
     <Link className="admin-back" to={returnTo}>← Quay lại sản phẩm</Link>
-    <div className="admin-heading"><div><h1>{readOnly ? 'Chi tiết sản phẩm' : id ? 'Sửa sản phẩm' : 'Thêm sản phẩm nháp'}</h1><p>Lưu nội dung, thông số và quản lý trạng thái công bố.</p></div><ProductStatus status={request.data?.record.status || 'draft'} /></div>
+    <div className="admin-heading"><div><h1>{readOnly ? 'Chi tiết sản phẩm' : id ? 'Sửa sản phẩm' : 'Thêm sản phẩm nháp'}</h1><p>Lưu nội dung, thông số và quản lý trạng thái công bố.</p></div><ProductStatus status={status} /></div>
     <AdminFeedback loading={request.loading} error={request.error ? { message: request.error, status: request.status } : null} retry={request.retry}>
-      {request.data && <><ProductEditor key={id || 'new'} id={id} returnTo={returnTo} readOnly={readOnly || request.data.record.status === 'inactive'} activeContent={request.data.record.status === 'active'} {...request.data} />{id && !readOnly && <ProductPublishingPanel id={id} name={request.data.record.name} refresh={request.retry} />}</>}
+      {request.data && <><ProductEditor key={(id || 'new') + '-' + status} id={id} returnTo={returnTo} readOnly={readOnly || status === 'inactive'} activeContent={status === 'active'} {...request.data} record={{ ...request.data.record, status }} />{id && !readOnly && <ProductPublishingPanel id={id} name={request.data.record.name} onStatusChange={(status) => setCurrentStatus({ id, status })} />}</>}
     </AdminFeedback>
   </>;
 }

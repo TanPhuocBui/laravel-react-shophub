@@ -4,14 +4,14 @@ import { getProductDetail, isDemoCatalog } from '../../services/catalogService';
 import { Link, useOutletContext, useParams } from 'react-router-dom';
 import CatalogStatus from '../../components/CatalogStatus';
 import ProductMedia from '../../components/ProductMedia';
-import ProductSection from '../../components/ProductSection';
+import RelatedProducts from '../../components/RelatedProducts';
 import Icon from '../../components/Icon';
 import NotFoundPage from './NotFoundPage';
 import { categoryUrl, formatPrice, getDiscount } from '../../utils/catalog';
 
 const tabs = [['description', 'Mô tả sản phẩm'], ['specs', 'Thông số kỹ thuật'], ['warranty', 'Bảo hành & lưu ý'], ['reviews', 'Đánh giá']];
 
-function DetailContent({ product, category, related }) {
+function DetailContent({ product, category }) {
   const variants = product.variants.filter((item) => item.is_active);
   const [sku, setSku] = useState(variants[0]?.sku);
   const [imageIndex, setImageIndex] = useState(0);
@@ -113,7 +113,7 @@ function DetailContent({ product, category, related }) {
           </div>
         </section>
       </div>
-      <ProductSection title="Cùng danh mục" products={related} to={categoryUrl(category.slug)} />
+      <RelatedProducts product={product} />
     </>
   );
 }
@@ -122,10 +122,10 @@ export default function ProductDetailPage() {
   const { slug } = useParams();
   const catalog = useOutletContext();
   const loader = useCallback((options) => getProductDetail(slug, options), [slug]);
-  const detail = useCatalog(catalog.data ? loader : null);
+  const detail = useCatalog(loader);
   if (!catalog.data) return <CatalogStatus {...catalog} />;
   if (detail.status === 404) return <NotFoundPage product />;
   if (!detail.data) return <CatalogStatus {...detail} />;
-  const { product, related } = detail.data;
-  return <DetailContent key={product.slug} product={product} category={product.category} related={related} />;
+  const { product } = detail.data;
+  return <DetailContent key={product.slug} product={product} category={product.category} />;
 }

@@ -55,7 +55,8 @@ const exceptions = [];
 const mutations = [];
 let apiServer, preview, chrome, ws;
 const php = process.env.CATALOG_PHP || 'D:/xampp/php/php.exe';
-const startApi = () => run(php, ['-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
+const opcodeArguments = process.env.CATALOG_PHP_OPCACHE === '1' ? ['-d', 'zend_extension=opcache', '-d', 'opcache.enable_cli=1', '-d', 'opcache.validate_timestamps=1', '-d', 'opcache.revalidate_freq=0'] : [];
+const startApi = () => run(php, [...opcodeArguments, '-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
 try {
   console.log((await completion(run(php, ['scripts/t02-browser-fixtures.php', '--accounts-only'], backend))).trim());
   await completion(run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'node_modules/.cache/t02-build'], process.cwd()));

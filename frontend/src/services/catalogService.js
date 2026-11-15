@@ -92,6 +92,5 @@ export async function getProductDetail(slug, options = {}) {
   } else {
     product = productView((await request(`/api/public/products/${encodeURIComponent(slug)}`, options)).data);
   }
-  const related = await getProducts({ category: product.category_slug, per_page: 6 }, options);
-  return { product, related: related.products.filter((item) => item.id !== product.id).slice(0, 5) };
+  return { product };
 }

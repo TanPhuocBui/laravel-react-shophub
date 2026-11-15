@@ -5,5 +5,12 @@ export async function loadPublishing(path, signal) {
 }
 export async function changePublishing(path, body, method = 'put') {
   await api.get('/sanctum/csrf-cookie');
-  return (await api[method]('/api/admin/' + path, body)).data;
+  try {
+    return (await api[method]('/api/admin/' + path, body)).data;
+  } catch (error) {
+    // The server may already have committed a timed-out/disconnected request.
+    // A CSRF bootstrap failure above happens before the write is attempted.
+    error.writeOutcomeUnknown = !error.response || error.response.status >= 500;
+    throw error;
+  }
 }

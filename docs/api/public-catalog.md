@@ -95,7 +95,9 @@ VITE_CATALOG_SOURCE=api
 
 Khởi động lại Vite hoặc build lại khi đổi biến. Không đặt source cũng mặc định API; chỉ `VITE_CATALOG_SOURCE=demo` mới dùng fixture React cũ. Source không hợp lệ báo lỗi cấu hình. API lỗi báo lỗi + nút thử lại, không fallback demo.
 
-`catalogService` dùng Axios chung, adapter resource sang shape UI; `useCatalog` quản lý tải, hủy request khi đổi query/route và thử lại. Metadata dùng categories/brands; homepage gọi riêng promotion per_page=4, newest per_page=5 (meta.total là tổng catalog), mỗi dải danh mục per_page=5. Danh sách lọc/sắp xếp/phân trang ở server; URLSearchParams và Back giữ hành vi cũ. Chi tiết gọi slug và tối đa 6 sản phẩm cùng danh mục để loại chính nó, hiển thị tối đa 5 liên quan.
+`catalogService` dùng Axios chung, adapter resource sang shape UI; `useCatalog` quản lý tải, hủy request khi đổi query/route và thử lại. Metadata dùng categories/brands; homepage gọi riêng promotion per_page=4, newest per_page=5 (meta.total là tổng catalog), mỗi dải danh mục per_page=5. Danh sách lọc/sắp xếp/phân trang ở server; URLSearchParams và Back giữ hành vi cũ. Danh sách và API chi tiết bắt đầu độc lập với metadata. Chi tiết hiển thị sau response slug; tối đa 6 sản phẩm cùng danh mục tải riêng để loại chính nó, hiển thị tối đa 5 liên quan. Lỗi tải liên quan không chặn SKU/thông số chính, có nút thử lại riêng.
+
+PERF-01: Axios vẫn gửi session cookie, nhưng không gắn X-XSRF-TOKEN vào GET/HEAD/OPTIONS để tránh CORS preflight không cần thiết. POST/PUT/PATCH/DELETE vẫn gửi token và dùng CSRF bootstrap hiện có; không thay xác thực, quyền hoặc contract API.
 
 Backend `CORS_ALLOWED_ORIGINS` mặc định `http://localhost:5173,http://localhost:4173`; thêm origin cụ thể nếu đổi cổng. `VITE_BACKEND_URL` là origin, không thêm `/api`. Axios giữ cấu hình credentials hiện có; API catalog không triển khai thêm xác thực, giỏ hàng hay đặt hàng.
 

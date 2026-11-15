@@ -38,3 +38,11 @@ Content chỉ nhận `name`, `short_description`, `description`, `images` và `_
 Ảnh dùng cùng validation, thứ tự, sở hữu ID và hàm ghi ảnh T03: JPG/PNG/WebP ≤5 MB, ≤6000×6000, 1..10 ảnh, UUID theo MIME. Transaction lỗi rollback metadata/tên/mô tả và xóa tệp mới; tệp cũ giữ nguyên theo chính sách T03. Không nhận path từ client.
 
 Các mutation T04 và lưu nháp khóa danh mục theo id trước, sau đó khóa bản ghi sản phẩm khi cần; publication khóa thêm thương hiệu/SKU. Quy ước khóa danh mục đồng bộ với T02 nhằm tránh cấu hình thay đổi xen giữa kiểm tra và ghi dữ liệu trong phạm vi catalog nhỏ của đồ án. Không đổi schema/migration/seeder hoặc API public.
+
+## Phản hồi và lỗi kết nối — PERF-01
+
+Frontend dùng schema có sẵn trong response lưu giá trị. HTTP 200 công bố/ẩn xác nhận trạng thái đã commit theo action, cập nhật giao diện tại chỗ và thông báo thành công; không tải lại toàn bộ form/options/schema. Cấu hình preview trong form có thể được tải lại khi vùng form được khởi tạo lại.
+
+Không tự retry mutation. Nếu request ghi đã bắt đầu nhưng mất phản hồi/timeout hoặc nhận 5xx, chưa thể kết luận đã rollback: hiển thị trạng thái chưa xác định, khóa gửi lặp trong vùng thông số/công bố, đóng dialog ẩn và cung cấp **Kiểm tra kết quả đã lưu**. Nút này chỉ GET schema/trạng thái mới, cập nhật form từ dữ liệu thực tế để admin đối chiếu; không phát lại request ghi. Nếu kiểm tra kết quả tiếp tục lỗi, giữ dữ liệu nhập và trạng thái chặn ghi. Lỗi 401/403/419/422 vẫn báo đúng ngữ cảnh; lỗi validation giữ dữ liệu nhập và focus tới field phù hợp.
+
+Request CSRF bootstrap lỗi trước khi gửi mutation được phân biệt với lỗi sau khi request ghi bắt đầu. GET không mang header CSRF, nhưng vẫn gửi cookie và chịu cùng middleware; request ghi vẫn cần CSRF.

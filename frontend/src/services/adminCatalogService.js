@@ -23,6 +23,7 @@ export async function hideAdminCatalog(kind, id) {
 }
 
 export function adminError(error) {
+  if (error.writeOutcomeUnknown) return 'Chưa xác định được kết quả lưu. Hãy đối chiếu dữ liệu đã lưu trước khi gửi lại.';
   const status = error.response?.status;
   if (status === 401) return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
   if (status === 403) return 'Bạn không có quyền quản trị hoặc tài khoản đã bị khóa.';

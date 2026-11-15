@@ -10,7 +10,10 @@ export default function AdminSpecificationsPage() {
   const [editing, setEditing] = useState(null);
   const [notice, setNotice] = useState('');
   const loader = useCallback(async ({ signal }) => {
-    try { return { definitions: await loadPublishing('specifications', signal), options: await getProductOptions(signal) }; }
+    try {
+      const [definitions, options] = await Promise.all([loadPublishing('specifications', signal), getProductOptions(signal)]);
+      return { definitions, options };
+    }
     catch (error) { throw Object.assign(new Error(adminError(error)), { status: error.response?.status }); }
   }, []);
   const request = useCatalog(loader);

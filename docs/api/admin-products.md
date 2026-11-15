@@ -56,4 +56,4 @@ Backend chuẩn hóa thứ tự key số do multipart file/input bags có thể 
 
 Khi dùng PHP server local, đặt `upload_max_filesize=5M`, `post_max_size=60M` hoặc lớn hơn để nhận đủ 10 ảnh; nếu PHP giới hạn thấp hơn thì giới hạn máy chủ áp dụng trước validation Laravel. Harness QA đặt riêng hai giá trị bằng CLI, không sửa php.ini cá nhân.
 
-UI: `/admin/products`, `/admin/products/create`, `/admin/products/:id/edit` (draft), `/admin/products/:id` (chỉ xem). Xem [báo cáo T03](../report/RP-T03-admin-products.md).
+UI T03: `/admin/products`, `/admin/products/create`, `/admin/products/:id/edit`, `/admin/products/:id` (chỉ xem). T04 bổ sung quản lý thông số/công bố và sửa nội dung active tại trang edit bằng endpoint riêng; endpoint cập nhật nháp trong tài liệu này vẫn giữ nguyên giới hạn. Xem [contract T04](admin-product-publishing.md) và [báo cáo T03](../report/RP-T03-admin-products.md).

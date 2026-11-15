@@ -131,7 +131,7 @@ export async function runProductScenarios({ call, evaluate, click, fill, navigat
   await navigate('/admin/products/' + active.id); await readyForm();
   assert.equal(await evaluate(() => document.querySelector('.product-editor button[type="submit"]') === null), true);
   assert.equal((await browserApi('/api/admin/products/' + active.id, 'PUT', payloadFor(await details(active.id)))).status, 409);
-  pass('T03 product publication remains out of scope: existing active product is read-only and update API returns 409.');
+  pass('T03 regression: the detail-only route stays read-only and the draft update API still returns 409 for an active product; T04 content edits use a separate endpoint.');
   for (const width of [1440, 768, 390]) {
     await call('Emulation.setDeviceMetricsOverride', { width, height: 1000, deviceScaleFactor: 1, mobile: width < 960 });
     await navigate('/admin/products?status=draft'); await readyList();

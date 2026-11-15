@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
 import { AdminCatalogForm, AdminCatalogList } from './pages/admin/AdminCatalogPage';
 import { AdminProductForm, AdminProductsList } from './pages/admin/AdminProductsPage';
+import AdminSpecificationsPage from './pages/admin/AdminSpecificationsPage';
 import PublicLayout from './layouts/PublicLayout';
 import HomePage from './pages/public/HomePage';
 import ProductsPage from './pages/public/ProductsPage';
@@ -18,6 +19,7 @@ export default function App() {
     <AccountProvider>
       <Routes>
         <Route path="admin" element={<AdminLayout />}>
+          <Route path="specifications" element={<AdminSpecificationsPage />} />
           <Route path="products" element={<AdminProductsList />} />
           <Route path="products/create" element={<AdminProductForm key="product-create" />} />
           <Route path="products/:id/edit" element={<AdminProductForm key="product-edit" />} />

@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\AdminBrandController;
 use App\Http\Controllers\Api\AdminCategoryController;
 use App\Http\Controllers\Api\AdminProductController;
+use App\Http\Controllers\Api\AdminPublishingController;
 use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Http\Request;
@@ -31,6 +32,16 @@ Route::get('/admin/access', fn () => response()->noContent())
     ->middleware(['auth:sanctum', 'can:access-admin']);
 
 Route::prefix('admin')->name('admin.')->middleware(['auth:sanctum', 'can:access-admin'])->group(function () {
+    Route::get('specifications', [AdminPublishingController::class, 'definitions'])->name('specifications.index');
+    Route::post('specifications', [AdminPublishingController::class, 'store'])->name('specifications.store');
+    Route::put('specifications/{specification}', [AdminPublishingController::class, 'update'])->name('specifications.update');
+    Route::get('categories/{category}/specifications', [AdminPublishingController::class, 'category'])->name('categories.specifications.show');
+    Route::put('categories/{category}/specifications', [AdminPublishingController::class, 'configure'])->name('categories.specifications.update');
+    Route::get('products/{product}/specifications', [AdminPublishingController::class, 'product'])->name('products.specifications.show');
+    Route::put('products/{product}/specifications', [AdminPublishingController::class, 'values'])->name('products.specifications.update');
+    Route::post('products/{product}/publish', [AdminPublishingController::class, 'publish'])->name('products.publish');
+    Route::post('products/{product}/hide', [AdminPublishingController::class, 'hide'])->name('products.hide');
+    Route::put('products/{product}/content', [AdminPublishingController::class, 'content'])->name('products.content.update');
     Route::get('products/options', [AdminProductController::class, 'options'])->name('products.options');
     Route::apiResource('products', AdminProductController::class)->except('destroy');
     Route::get('categories/options', [AdminCategoryController::class, 'options'])->name('categories.options');

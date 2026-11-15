@@ -161,6 +161,13 @@ bộ nhớ. Không chạy helper seeder trên database đang sử dụng.
 
 ## Quản trị sản phẩm, ảnh và SKU (T03)
 
+T04 bổ sung **Thông số** trong menu Admin và vùng thông số/công bố ở trang sửa sản phẩm.
+Sản phẩm active chỉ sửa tên, mô tả, ảnh và thông số; API nháp T03 vẫn giữ giới hạn cũ.
+Xem [API T04](docs/api/admin-product-publishing.md) và
+[báo cáo T04](docs/report/RP-T04-admin-product-publishing.md).
+Nghiệm thu Chrome với Laravel/MariaDB riêng: `node scripts/t02-admin-catalog-review.mjs --publishing`
+từ `frontend/`, sau khi chuẩn bị database mới theo hướng dẫn kiểm thử hiện có.
+
 Admin mở **Sản phẩm** ở sidebar hoặc `/admin/products`. Có tìm kiếm/phân trang,
 tạo và sửa bản nháp, upload bộ ảnh và nhiều SKU. Giá VND nguyên, tồn nguyên không
 âm; SKU đã lưu giữ ID và ngừng dùng bằng cờ Hoạt động, không xóa cứng. Draft không

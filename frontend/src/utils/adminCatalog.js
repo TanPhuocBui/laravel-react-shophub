@@ -1,4 +1,4 @@
-export const adminCatalogTitle = (kind) => ({ categories: 'Danh mục', brands: 'Thương hiệu', products: 'Sản phẩm' })[kind] || 'Catalog';
+export const adminCatalogTitle = (kind) => ({ categories: 'Danh mục', brands: 'Thương hiệu', products: 'Sản phẩm', specifications: 'Thông số kỹ thuật' })[kind] || 'Catalog';
 
 export function suggestCatalogSlug(name) {
   return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[đĐ]/g, 'd')

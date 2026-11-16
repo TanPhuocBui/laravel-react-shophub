@@ -11,7 +11,7 @@ export default function ProductsPage() {
   const [params, setParams] = useSearchParams();
   const query = params.toString();
   const loader = useCallback((options) => getProducts(new URLSearchParams(query), options), [query]);
-  const listing = useCatalog(catalog.data ? loader : null);
+  const listing = useCatalog(loader);
   const [error, setError] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(() => window.matchMedia('(min-width: 641px)').matches);
   const formError = error?.query === params.toString() ? error.message : '';

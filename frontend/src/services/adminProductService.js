@@ -9,11 +9,11 @@ export async function getAdminProduct(id, signal) {
 export async function getProductOptions(signal) {
   return (await api.get('/api/admin/products/options', { signal })).data.data;
 }
-export async function saveAdminProduct(id, fields, variants, images) {
+export async function saveAdminProduct(id, fields, variants, images, activeContent = false) {
   const data = new FormData();
   if (id) data.append('_method', 'PUT');
   for (const [key, value] of Object.entries(fields)) data.append(key, value ?? '');
-  for (const [index, variant] of variants.entries()) {
+  for (const [index, variant] of (activeContent ? [] : variants).entries()) {
     for (const field of ['id', 'sku', 'name', 'list_price', 'sale_price', 'stock_quantity', 'is_active']) {
       if (field === 'id' && !variant.id) continue;
       data.append('variants[' + index + '][' + field + ']', field === 'is_active' ? (variant[field] ? '1' : '0') : variant[field]);
@@ -32,5 +32,5 @@ export async function saveAdminProduct(id, fields, variants, images) {
     data.append('images[' + index + '][sort_order]', index);
   }
   await api.get('/sanctum/csrf-cookie');
-  return (await api.post('/api/admin/products' + (id ? '/' + id : ''), data)).data.data;
+  return (await api.post('/api/admin/products' + (id ? '/' + id : '') + (activeContent ? '/content' : ''), data)).data.data;
 }

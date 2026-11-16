@@ -232,3 +232,14 @@
   .admin-shell input, .admin-shell select { scroll-margin-bottom: 100px; }
   .admin-shell .admin-confirm { padding: 24px 20px; }
 }
+.admin-shell .spec-definition-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, 1fr); gap: 24px; margin-bottom: 24px; }
+.admin-shell .spec-definition-layout > *, .admin-shell .spec-value-grid > * { min-width: 0; }
+.admin-shell .spec-definition-layout fieldset, .admin-shell .spec-value-grid, .admin-shell .spec-config-rows { border: 0; padding: 0; margin: 0 0 20px; }
+.admin-shell .spec-config-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(120px, .6fr); gap: 20px; align-items: center; border-bottom: 1px solid var(--admin-border, #e2e8f0); padding: 16px 0; }
+.admin-shell .spec-value-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.admin-shell .product-publishing { margin-top: 24px; }
+.admin-shell .publication-context { margin-top: 24px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+.admin-shell .publication-context ul { padding-left: 24px; }
+.admin-shell .spec-config-row span, .admin-shell .spec-definition-layout td { overflow-wrap: anywhere; }
+@media (max-width: 960px) { .admin-shell .spec-definition-layout { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .admin-shell .spec-value-grid, .admin-shell .spec-config-row { grid-template-columns: minmax(0, 1fr); } .admin-shell .spec-config-row { gap: 8px; } }

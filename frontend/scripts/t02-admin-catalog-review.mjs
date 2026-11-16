@@ -8,7 +8,8 @@ import assert from 'node:assert/strict';
 // Real Chrome + Laravel + MariaDB. No screenshots or mocked API responses.
 // Requires a NEW migrated database created by backend/scripts/catalog-test-database.php.
 const backend = resolve('../backend');
-const productsReview = process.argv.includes('--products');
+const publishingReview = process.argv.includes('--publishing');
+const productsReview = process.argv.includes('--products') || publishingReview;
 const mediaRoot = resolve(backend, 'storage/framework/testing', 't03-media-' + Date.now());
 const metadata = JSON.parse(await readFile(resolve(backend, 'storage/framework/testing/catalog-api-database.json'), 'utf8'));
 const server = JSON.parse((await readFile(resolve(backend, 'storage/framework/testing/catalog-test-server.json'), 'utf8')).replace(/^\uFEFF/, ''));
@@ -54,7 +55,8 @@ const exceptions = [];
 const mutations = [];
 let apiServer, preview, chrome, ws;
 const php = process.env.CATALOG_PHP || 'D:/xampp/php/php.exe';
-const startApi = () => run(php, ['-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
+const opcodeArguments = process.env.CATALOG_PHP_OPCACHE === '1' ? ['-d', 'zend_extension=opcache', '-d', 'opcache.enable_cli=1', '-d', 'opcache.validate_timestamps=1', '-d', 'opcache.revalidate_freq=0'] : [];
+const startApi = () => run(php, [...opcodeArguments, '-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
 try {
   console.log((await completion(run(php, ['scripts/t02-browser-fixtures.php', '--accounts-only'], backend))).trim());
   await completion(run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'node_modules/.cache/t02-build'], process.cwd()));
@@ -144,10 +146,12 @@ try {
   await waitFor(() => document.body.textContent.includes('Cần đăng nhập'), 'guest guard');
   for (const kind of ['categories', 'brands', ...(productsReview ? ['products'] : [])]) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 401);
   pass('Guest: Admin UI asks for login; both API lists return 401.');
+  if (publishingReview) assert.equal((await browserApi('/api/admin/specifications')).status, 401);
   await login('customer'); await navigate('/admin/brands');
   await waitFor(() => document.body.textContent.includes('Không đủ quyền truy cập'), 'customer guard');
   for (const kind of ['categories', 'brands', ...(productsReview ? ['products'] : [])]) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 403);
   pass('Customer: Admin UI denies access; both API lists return 403.');
+  if (publishingReview) assert.equal((await browserApi('/api/admin/specifications')).status, 403);
   // Logout current test session via real T00 endpoint; never fabricate auth state.
   await evaluate(async (url) => {
     await fetch(url + '/sanctum/csrf-cookie', { credentials: 'include' });
@@ -390,10 +394,14 @@ try {
     const { runProductScenarios } = await import('./t03-admin-products-scenarios.mjs');
     await runProductScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, publicApi, pass, mutations, mediaRoot });
   }
+  if (publishingReview) {
+    const { runPublishingScenarios } = await import('./t04-admin-publishing-scenarios.mjs');
+    await runPublishingScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, publicApi, pass, mutations });
+  }
   assert.deepEqual(exceptions, []);
   assert(network.some((entry) => entry.url.startsWith('/api/admin/categories') && entry.status === 422));
   assert(network.some((entry) => entry.url.startsWith('/api/admin/brands') && entry.status === 201));
-  await writeFile(resolve(backend, 'storage/framework/testing/' + (productsReview ? 't03-browser-results.json' : 't02-browser-results.json')), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: 'api', widths: [1440, 768, 390], checks, exceptions, network, mutations }, null, 2));
+  await writeFile(resolve(backend, 'storage/framework/testing/' + (publishingReview ? 't04-browser-results.json' : productsReview ? 't03-browser-results.json' : 't02-browser-results.json')), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: 'api', widths: [1440, 768, 390], checks, exceptions, network, mutations }, null, 2));
   console.log(`PASS ${checks.length} browser scenarios; ${network.length} real API responses; no Runtime exceptions or screenshots.`);
 } finally {
   ws?.close();

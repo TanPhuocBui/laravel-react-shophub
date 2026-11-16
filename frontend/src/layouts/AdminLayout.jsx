@@ -14,6 +14,7 @@ function AdminNavigation({ close }) {
         <NavLink to="/admin/categories" onClick={close}><Icon name="grid" />Danh mục</NavLink>
         <NavLink to="/admin/brands" onClick={close}><Icon name="shield" />Thương hiệu</NavLink>
         <NavLink to="/admin/products" onClick={close}><Icon name="chip" />Sản phẩm</NavLink>
+        <NavLink to="/admin/specifications" onClick={close}><Icon name="grid" />Thông số</NavLink>
       </nav>
     </div>
     <div className="admin-sidebar-footer"><Link className="admin-store-link" to="/" onClick={close}><Icon name="home" />Xem cửa hàng<Icon name="arrow" /></Link></div>
@@ -27,7 +28,7 @@ export default function AdminLayout() {
   const menu = useRef(null);
   const trigger = useRef(null);
   const [menuOpen, setMenuOpen] = useState(false);
-  const kind = location.pathname.includes('/products') ? 'products' : location.pathname.includes('/brands') ? 'brands' : 'categories';
+  const kind = location.pathname.includes('/specifications') ? 'specifications' : location.pathname.includes('/products') ? 'products' : location.pathname.includes('/brands') ? 'brands' : 'categories';
   const moduleTitle = adminCatalogTitle(kind);
   const productDetail = kind === 'products' && /\/products\/\d+$/.test(location.pathname);
   const isForm = productDetail || /\/(create|\d+\/edit)$/.test(location.pathname);

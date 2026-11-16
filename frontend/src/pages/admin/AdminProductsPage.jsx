@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/Icon';
+import ProductPublishingPanel, { CategorySpecificationPreview } from '../../components/admin/ProductPublishingPanel';
 import { AdminFeedback, AdminField } from '../../components/admin/AdminFeedback';
 import AdminFilterToolbar from '../../components/admin/AdminFilterToolbar';
 import useCatalog from '../../hooks/useCatalog';
@@ -47,9 +48,9 @@ export function AdminProductsList() {
         ]} />
       <AdminFeedback loading={request.loading} error={request.error ? { message: request.error, status: request.status } : null} retry={request.retry}>
         {data && <>
-          <div className="admin-results-bar"><p className="admin-result" role="status">{data.meta.total} sản phẩm{data.data.length > 0 && <span> · Hiển thị {data.meta.from}–{data.meta.to}</span>}</p><p className="admin-table-note">Chỉ bản nháp có thể chỉnh sửa. Chưa hỗ trợ công bố và thông số kỹ thuật.</p></div>
+          <div className="admin-results-bar"><p className="admin-result" role="status">{data.meta.total} sản phẩm{data.data.length > 0 && <span> · Hiển thị {data.meta.from}–{data.meta.to}</span>}</p><p className="admin-table-note">Nhập thông số và quản lý công bố tại trang sửa sản phẩm.</p></div>
           {data.data.length ? <div className="admin-table-wrap" role="region" aria-label="Bảng sản phẩm" tabIndex={0}><table className="admin-table"><thead><tr><th>Sản phẩm</th><th>Danh mục / Thương hiệu</th><th className="admin-number">SKU</th><th className="admin-number">Giá SKU thấp nhất</th><th>Trạng thái</th><th>Thao tác</th></tr></thead><tbody>
-            {data.data.map((product) => <tr key={product.id} data-product-id={product.id}><td className="admin-name-cell"><Link className="admin-record-name" to={'/admin/products/' + product.id + (product.status === 'draft' ? '/edit' : '')} state={{ returnTo }}>{product.name}</Link><small className="admin-slug">{product.slug}</small></td><td>{product.category.name}<small className="product-muted">{product.brand.name}</small></td><td className="admin-number">{product.variants_count}</td><td className="admin-number">{product.min_sale_price == null ? '—' : formatPrice(product.min_sale_price)}</td><td><ProductStatus status={product.status} /></td><td><Link aria-label={(product.status === 'draft' ? 'Sửa ' : 'Xem ') + product.name} to={'/admin/products/' + product.id + (product.status === 'draft' ? '/edit' : '')} state={{ returnTo }}>{product.status === 'draft' ? 'Sửa nháp' : 'Xem'}</Link></td></tr>)}
+            {data.data.map((product) => <tr key={product.id} data-product-id={product.id}><td className="admin-name-cell"><Link className="admin-record-name" to={'/admin/products/' + product.id + '/edit'} state={{ returnTo }}>{product.name}</Link><small className="admin-slug">{product.slug}</small></td><td>{product.category.name}<small className="product-muted">{product.brand.name}</small></td><td className="admin-number">{product.variants_count}</td><td className="admin-number">{product.min_sale_price == null ? '—' : formatPrice(product.min_sale_price)}</td><td><ProductStatus status={product.status} /></td><td><Link aria-label={'Sửa ' + product.name} to={'/admin/products/' + product.id + '/edit'} state={{ returnTo }}>{product.status === 'draft' ? 'Sửa nháp' : 'Quản lý'}</Link></td></tr>)}
           </tbody></table></div> : <div className="admin-state"><Icon name="search" /><h2>{filtered ? 'Không tìm thấy sản phẩm' : 'Chưa có sản phẩm'}</h2><p>{filtered ? 'Thử từ khóa khác hoặc xóa bộ lọc.' : 'Bắt đầu với một bản nháp có ảnh và ít nhất một SKU.'}</p><Link className="admin-primary" to={filtered ? '/admin/products' : '/admin/products/create'} state={{ returnTo }}>{filtered ? 'Xóa bộ lọc' : 'Thêm sản phẩm'}</Link></div>}
           {(data.meta.last_page > 1 || data.meta.current_page > 1) && <nav className="admin-pagination" aria-label="Phân trang sản phẩm"><span>Trang {data.meta.current_page} / {data.meta.last_page}</span><div><button disabled={data.meta.current_page <= 1} onClick={() => page(data.meta.current_page - 1)}>Trang trước</button><button disabled={data.meta.current_page >= data.meta.last_page} onClick={() => page(data.meta.current_page + 1)}>Trang sau</button></div></nav>}
         </>}
@@ -60,6 +61,7 @@ export function AdminProductsList() {
 
 export function AdminProductForm({ readOnly = false }) {
   const { id } = useParams();
+  const [currentStatus, setCurrentStatus] = useState(null);
   const location = useLocation();
   const loader = useCallback(async ({ signal }) => {
     try {
@@ -69,17 +71,19 @@ export function AdminProductForm({ readOnly = false }) {
   }, [id]);
   const request = useCatalog(loader);
   const returnTo = catalogReturnTo('products', location.state);
+  const status = currentStatus && currentStatus.id === id ? currentStatus.status : request.data?.record.status || 'draft';
   return <>
     <Link className="admin-back" to={returnTo}>← Quay lại sản phẩm</Link>
-    <div className="admin-heading"><div><h1>{readOnly ? 'Chi tiết sản phẩm' : id ? 'Sửa sản phẩm nháp' : 'Thêm sản phẩm nháp'}</h1><p>Lưu thông tin, bộ ảnh và các SKU trong cùng một lần.</p></div><ProductStatus status={request.data?.record.status || 'draft'} /></div>
+    <div className="admin-heading"><div><h1>{readOnly ? 'Chi tiết sản phẩm' : id ? 'Sửa sản phẩm' : 'Thêm sản phẩm nháp'}</h1><p>Lưu nội dung, thông số và quản lý trạng thái công bố.</p></div><ProductStatus status={status} /></div>
     <AdminFeedback loading={request.loading} error={request.error ? { message: request.error, status: request.status } : null} retry={request.retry}>
-      {request.data && <ProductEditor key={id || 'new'} id={id} returnTo={returnTo} readOnly={readOnly || request.data.record.status !== 'draft'} {...request.data} />}
+      {request.data && <><ProductEditor key={(id || 'new') + '-' + status} id={id} returnTo={returnTo} readOnly={readOnly || status === 'inactive'} activeContent={status === 'active'} {...request.data} record={{ ...request.data.record, status }} />{id && !readOnly && <ProductPublishingPanel id={id} name={request.data.record.name} onStatusChange={(status) => setCurrentStatus({ id, status })} />}</>}
     </AdminFeedback>
   </>;
 }
 
-function ProductEditor({ id, record, options, returnTo, readOnly }) {
+function ProductEditor({ id, record, options, returnTo, readOnly, activeContent }) {
   const navigate = useNavigate();
+  const [category, setCategory] = useState(record.category_id);
   const [name, setName] = useState(record.name);
   const [slug, setSlug] = useState(record.slug);
   const [manualSlug, setManualSlug] = useState(false);
@@ -109,11 +113,11 @@ function ProductEditor({ id, record, options, returnTo, readOnly }) {
     event.preventDefault();
     if (submitting.current || readOnly) return;
     const data = new FormData(event.currentTarget);
-    const fields = Object.fromEntries(['name', 'slug', 'category_id', 'brand_id', 'short_description', 'description', 'warranty_months'].map((key) => [key, data.get(key)]));
+    const fields = Object.fromEntries((activeContent ? ['name', 'short_description', 'description'] : ['name', 'slug', 'category_id', 'brand_id', 'short_description', 'description', 'warranty_months']).map((key) => [key, data.get(key)]));
     submitting.current = true; setBusy(true); setErrors({}); setMessage('');
     try {
-      const saved = await saveAdminProduct(id, fields, variants, images);
-      navigate(returnTo, { state: { notice: 'Đã lưu bản nháp “' + saved.name + '”.' } });
+      const saved = await saveAdminProduct(id, fields, variants, images, activeContent);
+      navigate(returnTo, { state: { notice: (activeContent ? 'Đã cập nhật nội dung “' : 'Đã lưu bản nháp “') + saved.name + '”.' } });
     } catch (error) {
       setErrors(error.response?.data?.errors || {});
       setMessage(error.response?.status === 409 ? error.response.data.message : adminError(error));
@@ -125,14 +129,16 @@ function ProductEditor({ id, record, options, returnTo, readOnly }) {
     } finally { submitting.current = false; setBusy(false); }
   }
   return <>
-    {readOnly && <p className="admin-notice" role="status">Sản phẩm này chỉ được xem. Khu vực này chỉ cho phép chỉnh sửa bản nháp.</p>}
+    {readOnly && <p className="admin-notice" role="status">Thông tin sản phẩm hiện chỉ được xem. Sản phẩm đã ẩn có thể nhập thông số và công bố lại bên dưới.</p>}
+    {activeContent && !readOnly && <p className="admin-notice">Chỉ sửa tên, mô tả, ảnh và thông số. Slug, danh mục, thương hiệu, SKU, giá và tồn kho được giữ nguyên.</p>}
     <form className="admin-editor product-editor" onSubmit={submit} aria-busy={busy}>
       {message && <p id="product-form-error" tabIndex={-1} className="admin-error-banner" role="alert">{message}</p>}
       <div className="admin-card"><fieldset className="admin-form-section" disabled={disabled}><legend>Thông tin sản phẩm</legend>
         <AdminField name="name" label="Tên sản phẩm *" required maxLength={255} value={name} onChange={updateName} errors={errors} />
-        <AdminField name="slug" label="Slug *" required maxLength={255} value={slug} onChange={(event) => { setSlug(event.target.value); setManualSlug(true); }} errors={errors} hint="Slug duy nhất. Đổi tên sản phẩm đã lưu không tự đổi slug." />
-        <div className="product-field-grid"><AdminField name="category_id" label="Danh mục *" required defaultValue={record.category_id} errors={errors}><option value="">Chọn danh mục</option>{options.categories.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_active ? '' : ' — Đã ẩn'}</option>)}</AdminField><AdminField name="brand_id" label="Thương hiệu *" required defaultValue={record.brand_id} errors={errors}><option value="">Chọn thương hiệu</option>{options.brands.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_active ? '' : ' — Đã ẩn'}</option>)}</AdminField></div>
-        <AdminField name="warranty_months" label="Bảo hành (tháng) *" type="number" min="0" max="65535" step="1" required defaultValue={record.warranty_months} errors={errors} />
+        <AdminField disabled={activeContent} name="slug" label="Slug *" required maxLength={255} value={slug} onChange={(event) => { setSlug(event.target.value); setManualSlug(true); }} errors={errors} hint="Slug duy nhất. Đổi tên sản phẩm đã lưu không tự đổi slug." />
+        <div className="product-field-grid"><AdminField name="category_id" label="Danh mục *" disabled={activeContent} required value={category} onChange={(event) => setCategory(event.target.value)} errors={errors}><option value="">Chọn danh mục</option>{options.categories.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_active ? '' : ' — Đã ẩn'}</option>)}</AdminField><AdminField name="brand_id" label="Thương hiệu *" disabled={activeContent} required defaultValue={record.brand_id} errors={errors}><option value="">Chọn thương hiệu</option>{options.brands.map((item) => <option key={item.id} value={item.id}>{item.name}{item.is_active ? '' : ' — Đã ẩn'}</option>)}</AdminField></div>
+        <CategorySpecificationPreview category={category} />
+        <AdminField disabled={activeContent} name="warranty_months" label="Bảo hành (tháng) *" type="number" min="0" max="65535" step="1" required defaultValue={record.warranty_months} errors={errors} />
         <AdminField name="short_description" label="Mô tả ngắn" multiline rows={3} maxLength={5000} defaultValue={record.short_description || ''} errors={errors} />
         <AdminField name="description" label="Mô tả sản phẩm" multiline rows={6} maxLength={50000} defaultValue={record.description || ''} errors={errors} hint="Nhập văn bản thuần, không sử dụng mã HTML." />
       </fieldset></div>
@@ -151,7 +157,7 @@ function ProductEditor({ id, record, options, returnTo, readOnly }) {
           </div>) : <p className="product-empty-note">Chưa chọn ảnh. Thêm ít nhất một ảnh trước khi lưu.</p>}
         </div>
       </fieldset></div>
-      <div className="admin-card"><fieldset className="admin-form-section" disabled={disabled}><legend>Phiên bản / SKU</legend>
+      <div className="admin-card"><fieldset className="admin-form-section" disabled={disabled || activeContent}><legend>Phiên bản / SKU</legend>
         <p className="admin-help">Giá VND nguyên: 0 &lt; giá bán ≤ giá niêm yết, tối đa 999.999.999.999 VND. Tồn kho nguyên không âm. SKU đã lưu được giữ ID; bỏ Hoạt động để ngừng dùng.</p>
         <div id="field-variants" tabIndex={-1}>{errors.variants && <p className="admin-field-error">{errors.variants[0]}</p>}
           {variants.map((variant, index) => <div className="product-sku-row" key={variant.key} data-sku-index={index} role="group" aria-labelledby={'sku-title-' + index}>
@@ -165,7 +171,7 @@ function ProductEditor({ id, record, options, returnTo, readOnly }) {
         </div>
         <button className="product-add-sku" type="button" disabled={disabled || variants.length >= 50} onClick={() => setVariants((rows) => [...rows, freshVariant()])}><Icon name="grid" />Thêm SKU</button>
       </fieldset></div>
-      <div className="admin-form-actions admin-actions"><Link to={returnTo} aria-disabled={busy || undefined} onClick={(event) => { if (busy) event.preventDefault(); }}>Hủy</Link>{!readOnly && <button className="admin-primary" type="submit" disabled={busy}><Icon name="check" />{busy ? 'Đang lưu…' : id ? 'Lưu thay đổi bản nháp' : 'Lưu bản nháp'}</button>}</div>
+      <div className="admin-form-actions admin-actions"><Link to={returnTo} aria-disabled={busy || undefined} onClick={(event) => { if (busy) event.preventDefault(); }}>Hủy</Link>{!readOnly && <button className="admin-primary" type="submit" disabled={busy}><Icon name="check" />{busy ? 'Đang lưu…' : activeContent ? 'Lưu nội dung công khai' : id ? 'Lưu thay đổi bản nháp' : 'Lưu bản nháp'}</button>}</div>
     </form>
   </>;
 }

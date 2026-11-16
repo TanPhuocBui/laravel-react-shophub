@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Category;
 use App\Models\Product;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
@@ -106,10 +107,10 @@ class AdminProductService
         $conflict = 'slug';
         try {
             return DB::transaction(function () use ($data, $product, &$written, &$conflict) {
+                Category::orderBy('id')->lockForUpdate()->get(['id']);
                 $record = $product ? Product::lockForUpdate()->findOrFail($product->id) : new Product;
                 abort_if($record->exists && $record->status !== Product::STATUS_DRAFT, 409, 'Chỉ cho phép sửa sản phẩm nháp.');
                 $storedVariants = $record->exists ? $record->variants()->orderBy('id')->lockForUpdate()->get()->keyBy('id') : collect();
-                $storedImages = $record->exists ? $record->images()->lockForUpdate()->get()->keyBy('id') : collect();
                 $valid = Validator::make($data, self::rules($data, $record->exists ? $record : null), self::messages())->validate();
                 $submittedIds = collect($valid['variants'])->pluck('id')->filter()->map(fn ($id) => (int) $id);
                 if ($storedVariants->keys()->diff($submittedIds)->isNotEmpty()) {
@@ -121,28 +122,7 @@ class AdminProductService
                 $record->fill(Arr::only($valid, ['name', 'slug', 'category_id', 'brand_id', 'short_description', 'description', 'warranty_months']));
                 $record->status = Product::STATUS_DRAFT;
                 $record->save();
-                $keptImages = [];
-                foreach ($valid['images'] as $i => $image) {
-                    $model = ! empty($image['id']) ? $storedImages->get($image['id']) : $record->images()->make();
-                    if (! empty($image['file'])) {
-                        $file = $image['file'];
-                        $name = Str::uuid().'.'.$file->extension();
-                        $path = 'catalog/products/'.$name;
-                        // Track before writing so a partial/failed write is cleaned too.
-                        $written[] = $path;
-                        if (! Storage::disk('public')->putFileAs('catalog/products', $file, $name)) {
-                            throw new \RuntimeException('Không thể lưu tệp ảnh.');
-                        }
-                        $model->path = 'media/catalog/'.$name;
-                    }
-                    $model->alt_text = $image['alt_text'] ?? null;
-                    $model->sort_order = $image['sort_order'];
-                    $model->save();
-                    $keptImages[] = $model->id;
-                }
-                $record->images()->whereNotIn('id', $keptImages)->delete();
-                // Existing files are retained: removal/replacement edits metadata only,
-                // avoiding broken historical URLs or shared seeded image paths.
+                $this->saveImages($record, $valid['images'], $written);
                 foreach ($valid['variants'] as $i => $variant) {
                     $conflict = "variants.{$i}.sku";
                     $model = ! empty($variant['id']) ? $storedVariants->get($variant['id']) : $record->variants()->make();
@@ -153,13 +133,45 @@ class AdminProductService
                 return $record->load(['category', 'brand', 'images', 'variants' => fn ($query) => $query->orderBy('id')]);
             });
         } catch (Throwable $error) {
-            foreach ($written as $path) {
-                Storage::disk('public')->delete($path);
-            }
+            $this->cleanupImages($written);
             if ($error instanceof UniqueConstraintViolationException) {
                 throw ValidationException::withMessages([$conflict => $conflict === 'slug' ? 'Slug sản phẩm đã tồn tại.' : 'Mã SKU vừa được sử dụng bởi yêu cầu khác. Vui lòng kiểm tra lại.']);
             }
             throw $error;
+        }
+    }
+
+    public function saveImages(Product $record, array $images, array &$written): void
+    {
+        $storedImages = $record->images()->lockForUpdate()->get()->keyBy('id');
+        $keptImages = [];
+        foreach ($images as $image) {
+            $model = ! empty($image['id']) ? $storedImages->get($image['id']) : $record->images()->make();
+            if (! empty($image['file'])) {
+                $file = $image['file'];
+                $name = Str::uuid().'.'.$file->extension();
+                $path = 'catalog/products/'.$name;
+                // Track before writing so a partial/failed write is cleaned too.
+                $written[] = $path;
+                if (! Storage::disk('public')->putFileAs('catalog/products', $file, $name)) {
+                    throw new \RuntimeException('Không thể lưu tệp ảnh.');
+                }
+                $model->path = 'media/catalog/'.$name;
+            }
+            $model->alt_text = $image['alt_text'] ?? null;
+            $model->sort_order = $image['sort_order'];
+            $model->save();
+            $keptImages[] = $model->id;
+        }
+        $record->images()->whereNotIn('id', $keptImages)->delete();
+        // Existing files are retained: removal/replacement edits metadata only,
+        // avoiding broken historical URLs or shared seeded image paths.
+    }
+
+    public function cleanupImages(array $written): void
+    {
+        foreach ($written as $path) {
+            Storage::disk('public')->delete($path);
         }
     }
 }

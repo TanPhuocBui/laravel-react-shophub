@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminBrandController;
 use App\Http\Controllers\Api\AdminCategoryController;
 use App\Http\Controllers\Api\AdminProductController;
 use App\Http\Controllers\Api\AdminPublishingController;
+use App\Http\Controllers\Api\CustomerAddressController;
 use App\Http\Controllers\Api\PublicCatalogController;
 use App\Http\Middleware\EnsureAccountIsActive;
 use Illuminate\Http\Request;
@@ -30,6 +31,14 @@ Route::get('/user', function (Request $request) {
 
 Route::get('/admin/access', fn () => response()->noContent())
     ->middleware(['auth:sanctum', 'can:access-admin']);
+
+Route::prefix('customer')->name('customer.')->middleware(['auth:sanctum', EnsureAccountIsActive::class, 'can:manage-addresses'])->group(function () {
+    Route::get('addresses', [CustomerAddressController::class, 'index'])->name('addresses.index');
+    Route::post('addresses', [CustomerAddressController::class, 'store'])->name('addresses.store');
+    Route::put('addresses/{address}', [CustomerAddressController::class, 'update'])->whereNumber('address')->name('addresses.update');
+    Route::delete('addresses/{address}', [CustomerAddressController::class, 'destroy'])->whereNumber('address')->name('addresses.destroy');
+    Route::patch('addresses/{address}/default', [CustomerAddressController::class, 'makeDefault'])->whereNumber('address')->name('addresses.default');
+});
 
 Route::prefix('admin')->name('admin.')->middleware(['auth:sanctum', 'can:access-admin'])->group(function () {
     Route::get('specifications', [AdminPublishingController::class, 'definitions'])->name('specifications.index');

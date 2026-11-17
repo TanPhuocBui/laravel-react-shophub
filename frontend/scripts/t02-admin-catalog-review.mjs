@@ -8,6 +8,7 @@ import assert from 'node:assert/strict';
 // Real Chrome + Laravel + MariaDB. No screenshots or mocked API responses.
 // Requires a NEW migrated database created by backend/scripts/catalog-test-database.php.
 const backend = resolve('../backend');
+const addressesReview = process.argv.includes('--addresses');
 const publishingReview = process.argv.includes('--publishing');
 const productsReview = process.argv.includes('--products') || publishingReview;
 const mediaRoot = resolve(backend, 'storage/framework/testing', 't03-media-' + Date.now());
@@ -31,7 +32,7 @@ const base = `http://localhost:${previewPort}`;
 const password = randomBytes(24).toString('hex');
 const env = { ...process.env, APP_ENV: 'testing', APP_DEBUG: 'false', APP_KEY: 'base64:' + randomBytes(32).toString('base64'), APP_URL: apiBase,
   DB_CONNECTION: 'mysql', DB_URL: '', DB_HOST: '127.0.0.1', DB_PORT: String(server.port), DB_DATABASE: metadata.database, DB_USERNAME: 'root', DB_PASSWORD: '',
-  CATALOG_TEST_DATABASE: metadata.database, T02_TEST_PASSWORD: password, CACHE_STORE: 'array', SESSION_DRIVER: 'file', SESSION_COOKIE: `t02_${Date.now()}`,
+  CATALOG_TEST_DATABASE: metadata.database, T02_TEST_PASSWORD: password, CACHE_STORE: 'array', SESSION_DRIVER: addressesReview ? 'database' : 'file', SESSION_COOKIE: `t02_${Date.now()}`,
   CORS_ALLOWED_ORIGINS: base, SANCTUM_STATEFUL_DOMAINS: `localhost:${previewPort},localhost:${apiPort}`, VITE_CATALOG_SOURCE: 'api', VITE_BACKEND_URL: apiBase };
 if (productsReview) env.CATALOG_MEDIA_ROOT = mediaRoot;
 function run(command, args, cwd) {
@@ -85,7 +86,7 @@ try {
     if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails.text);
     if (message.method === 'Network.requestWillBeSent') {
       const { request } = message.params;
-      if (request.url.startsWith(apiBase + '/api/admin/') && request.method !== 'GET' && request.method !== 'OPTIONS') mutations.push({ url: request.url.replace(apiBase, ''), method: request.method });
+      if (request.url.startsWith(apiBase + '/api/' + (addressesReview ? 'customer/' : 'admin/')) && request.method !== 'GET' && request.method !== 'OPTIONS') mutations.push({ url: request.url.replace(apiBase, ''), method: request.method });
     }
     if (message.method === 'Network.responseReceived') {
       const { response } = message.params;
@@ -142,6 +143,14 @@ try {
   };
   await Promise.all([call('Page.enable'), call('Runtime.enable'), call('Network.enable')]);
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+  if (addressesReview) {
+    await completion(run(php, ['scripts/t05-browser-fixtures.php'], backend));
+    const { runAddressScenarios } = await import('./t05-customer-address-scenarios.mjs');
+    await runAddressScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture: (action) => completion(run(php, ['scripts/t05-browser-fixtures.php', action], backend)) });
+    assert.deepEqual(exceptions, []);
+    await writeFile(resolve(backend, 'storage/framework/testing/t05-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, widths: [1440,768,390], checks, exceptions, network, mutations }, null, 2));
+    console.log(`PASS ${checks.length} T05 browser scenarios; ${network.length} real API responses; no screenshots.`);
+  } else {
   await navigate('/admin/categories');
   await waitFor(() => document.body.textContent.includes('Cần đăng nhập'), 'guest guard');
   for (const kind of ['categories', 'brands', ...(productsReview ? ['products'] : [])]) assert.equal((await browserApi(`/api/admin/${kind}`)).status, 401);
@@ -403,6 +412,7 @@ try {
   assert(network.some((entry) => entry.url.startsWith('/api/admin/brands') && entry.status === 201));
   await writeFile(resolve(backend, 'storage/framework/testing/' + (publishingReview ? 't04-browser-results.json' : productsReview ? 't03-browser-results.json' : 't02-browser-results.json')), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: 'api', widths: [1440, 768, 390], checks, exceptions, network, mutations }, null, 2));
   console.log(`PASS ${checks.length} browser scenarios; ${network.length} real API responses; no Runtime exceptions or screenshots.`);
+  }
 } finally {
   ws?.close();
   await Promise.all([stop(chrome), stop(preview), stop(apiServer)]);

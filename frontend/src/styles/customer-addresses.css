@@ -1,0 +1,30 @@
+.storefront .orbit-grid.orbit-grid-wide { grid-template-columns: minmax(0, .7fr) minmax(0, 1.6fr); align-items: start; }
+.storefront .orbit-grid-wide .orbit-card { max-width: 900px; }
+.storefront .orbit-grid-wide .orbit-headline { font-size: clamp(2rem, 4vw, 3.6rem); }
+.storefront .account-tabs { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0; }
+.storefront .account-tabs button, .storefront .address-book button, .storefront .address-confirm button { font: inherit; cursor: pointer; min-height: 44px; padding: 9px 13px; border: 1px solid #b4c1d3; border-radius: 7px; color: #243b60; background: white; font-weight: 600; }
+.storefront .account-tabs button[aria-current=page] { background: #243b60; color: white; border-color: #243b60; }
+.storefront .address-book button:disabled, .storefront .address-confirm button:disabled { opacity: .6; cursor: not-allowed; }
+.storefront .address-book .address-primary { background: #ffce67; border-color: #ffce67; color: #182139; }
+.storefront .address-heading, .storefront .address-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.storefront .address-heading p, .storefront .address-help { color: #53627a; font-size: .88rem; margin: 6px 0 12px; }
+.storefront .address-heading h2 { font-size: 1.35rem; }
+.storefront .address-list { display: grid; gap: 14px; margin: 16px 0; }
+.storefront .address-card { border: 1px solid #d7dfeb; border-radius: 10px; padding: 18px; min-width: 0; overflow-wrap: anywhere; }
+.storefront .address-card h3 { font-size: 1.05rem; }
+.storefront .address-card p { margin: 6px 0; }
+.storefront .address-phone { color: #53627a; }
+.storefront .address-default { display: inline-block; color: #175532; background: #eaf6ed; border: 1px solid #b2d5bc; border-radius: 5px; font-size: .8rem; padding: 3px 8px; font-weight: 600; }
+.storefront .address-actions, .storefront .address-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.storefront .address-actions .address-delete { color: #a51c33; }
+.storefront .address-form { border-top: 1px solid #d7dfeb; padding-top: 22px; margin-top: 24px; }
+.storefront .address-form fieldset { padding: 0; margin: 0; border: 0; min-width: 0; display: grid; gap: 14px; }
+.storefront .address-checkbox { display: flex; align-items: center; gap: 10px; font-size: .9rem; }
+.storefront .address-checkbox input { width: 20px; height: 20px; accent-color: #243b60; }
+.storefront .address-empty, .storefront .address-load-error { padding: 18px 0; }
+.storefront .address-confirm { width: min(92vw, 500px); max-height: 85dvh; overflow: auto; border: 1px solid #d7dfeb; border-radius: 12px; padding: 24px; color: #182139; overflow-wrap: anywhere; }
+.storefront .address-confirm::backdrop { background: #10203999; }
+.storefront .address-confirm .address-danger { background: #a51c33; color: white; border-color: #a51c33; }
+.storefront .address-confirm :focus-visible { outline: 3px solid #375baf; outline-offset: 2px; }
+@media (max-width: 960px) { .storefront .orbit-grid.orbit-grid-wide { grid-template-columns: minmax(0, 1fr); } .storefront .orbit-grid-wide .orbit-story { display: none; } }
+@media (max-width: 480px) { .storefront .address-actions button { flex: 1 1 auto; } .storefront .account-tabs button { flex: 1 1 100%; } .storefront .address-card { padding: 14px; } }

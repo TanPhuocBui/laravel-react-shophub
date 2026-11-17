@@ -191,6 +191,25 @@ node scripts/t02-admin-catalog-review.mjs --products
 Harness `--products` giữ các kiểm tra T02/T01, bổ sung T03 và lưu upload vào thư
 mục testing riêng. Không chạy trên database ShopHub đang dùng, không tạo screenshot.
 
+## Sổ địa chỉ giao hàng (T05)
+
+Khách hàng đăng nhập mở `/account` → **Địa chỉ giao hàng**, hoặc
+`/account?view=addresses`, để thêm/sửa/xóa/đặt mặc định. Địa chỉ đầu tiên tự mặc
+định; xóa mặc định chọn địa chỉ còn lại được tạo sớm nhất. Chưa chọn địa chỉ cho
+đơn hàng (T07). Xem [API T05](docs/api/customer-addresses.md) và
+[báo cáo T05](docs/report/RP-T05-customer-addresses.md).
+
+Sau khi cấu hình đúng database XAMPP trong backend/.env, từ backend chạy:
+
+```powershell
+php artisan migrate:status
+php artisan migrate
+```
+
+Migration mới chỉ thêm bảng addresses, không cần seed hoặc migrate:fresh. Dừng
+và khởi động lại backend nếu môi trường đang giữ route/config cũ. Để kiểm thử,
+chọn database **riêng** theo hướng dẫn trong báo cáo; không chạy reset DB thật.
+
 ## Địa chỉ local
 
 - Backend: http://localhost:8000

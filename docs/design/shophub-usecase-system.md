@@ -192,3 +192,4 @@ UC12–UC13 yêu thích theo tài khoản. UC30 xử lý đổi trả/bảo hàn
 - SHOPHUB_BUSINESS_ARCHITECTURE.md.
 - stayhub-usecase-system.md cung cấp cấu trúc trình bày theo tác nhân, luồng và module.
 - Từ điển dữ liệu đi kèm trong shophub-erd.md.
+

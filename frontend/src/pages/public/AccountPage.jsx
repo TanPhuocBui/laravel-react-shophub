@@ -1,14 +1,16 @@
 import { useState } from 'react';
-import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/Icon';
+import AccountField from '../../components/account/AccountField';
+import CustomerAddressBook from '../customer/CustomerAddressBook';
 import { useAccount } from '../../contexts/useAccount';
 import { registerAccount } from '../../services/accountService';
 import '../../styles/account-orbit.css';
 
-function AccountLayout({ children }) {
+function AccountLayout({ children, wide = false }) {
   return (
     <section className="account-orbit">
-      <div className="orbit-grid wrap">
+      <div className={'orbit-grid wrap' + (wide ? ' orbit-grid-wide' : '')}>
         <div className="orbit-story" aria-hidden="true">
           <svg viewBox="0 0 550 480" className="orbit-graphic" focusable="false">
             <defs>
@@ -38,30 +40,6 @@ function AccountLayout({ children }) {
         <div className="orbit-card">{children}</div>
       </div>
     </section>
-  );
-}
-
-function AccountField({ name, label, error, togglePassword, type = 'text', ...props }) {
-  const [visible, setVisible] = useState(false);
-
-  return (
-    <div className="orbit-field">
-      <label htmlFor={name}>{label}</label>
-      <div className="orbit-input">
-        <input
-          id={name} name={name} type={visible ? 'text' : type} required
-          aria-invalid={Boolean(error)} aria-describedby={error ? `${name}-error` : undefined}
-          {...props}
-        />
-        {togglePassword && (
-          <button
-            type="button" className="orbit-password-toggle" onClick={() => setVisible(!visible)}
-            aria-label={visible ? `Ẩn ${label.toLowerCase()}` : `Hiện ${label.toLowerCase()}`}
-          >{visible ? 'Ẩn' : 'Hiện'}</button>
-        )}
-      </div>
-      {error && <p className="orbit-field-error" id={`${name}-error`}>{error}</p>}
-    </div>
   );
 }
 
@@ -155,12 +133,14 @@ export function AccountAuthPage({ register = false }) {
 }
 
 export function AccountProfilePage() {
+  const [params, setParams] = useSearchParams();
   const { user, checking, unavailable, retry } = useAccount();
 
+  const addresses = user?.role === 'customer' && params.get('view') === 'addresses';
   if (!checking && !unavailable && !user) return <Navigate replace to="/login" />;
 
   return (
-    <AccountLayout>
+    <AccountLayout wide={addresses}>
       <span className="orbit-card-kicker">TÀI KHOẢN SHOPHUB</span>
       <h1>Thông tin tài khoản</h1>
       {checking && <p className="orbit-intro" role="status">Đang kiểm tra phiên đăng nhập…</p>}
@@ -170,14 +150,15 @@ export function AccountProfilePage() {
           <button className="orbit-submit" type="button" onClick={retry}>Thử lại</button>
         </>
       )}
-      {user && (
+      {user && !checking && !unavailable && (
         <>
-          <dl className="orbit-profile">
+          {user.role === 'customer' && <nav className="account-tabs" aria-label="Tài khoản"><button aria-current={!addresses ? 'page' : undefined} onClick={() => setParams({})}>Thông tin tài khoản</button><button aria-current={addresses ? 'page' : undefined} onClick={() => setParams({ view: 'addresses' })}>Địa chỉ giao hàng</button></nav>}
+          {addresses ? <CustomerAddressBook key={user.id} /> : <><dl className="orbit-profile">
             <div><dt>Họ và tên</dt><dd>{user.name}</dd></div>
             <div><dt>Email</dt><dd>{user.email}</dd></div>
             <div><dt>Vai trò</dt><dd>{user.role === 'admin' ? 'Quản trị viên' : 'Khách hàng'}</dd></div>
           </dl>
-          <Link className="orbit-submit" to="/products">Tiếp tục mua sắm <Icon name="arrow" /></Link>
+          <Link className="orbit-submit" to="/products">Tiếp tục mua sắm <Icon name="arrow" /></Link></>}
         </>
       )}
     </AccountLayout>

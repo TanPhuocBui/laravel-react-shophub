@@ -5,6 +5,7 @@ import AccountField from '../../components/account/AccountField';
 import CustomerAddressBook from '../customer/CustomerAddressBook';
 import { useAccount } from '../../contexts/useAccount';
 import { registerAccount } from '../../services/accountService';
+import { cartReturnPath } from '../../utils/cart';
 import '../../styles/account-orbit.css';
 
 function AccountLayout({ children, wide = false }) {
@@ -50,8 +51,10 @@ export function AccountAuthPage({ register = false }) {
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState({});
   const [message, setMessage] = useState('');
+  const returnPath = cartReturnPath(location.state?.cartReturn);
+  const returnState = returnPath ? { cartReturn: location.state.cartReturn } : undefined;
 
-  if (user) return <Navigate replace to="/account" />;
+  if (user) return <Navigate replace to={returnPath || '/account'} />;
 
   async function submit(event) {
     event.preventDefault();
@@ -69,10 +72,10 @@ export function AccountAuthPage({ register = false }) {
     try {
       if (register) {
         await registerAccount(fields);
-        navigate('/login', { replace: true, state: { registered: true, email: fields.email.trim() } });
+        navigate('/login', { replace: true, state: { ...returnState, registered: true, email: fields.email.trim() } });
       } else {
         await login(fields);
-        navigate('/account', { replace: true });
+        navigate(returnPath || '/account', { replace: true });
       }
     } catch (error) {
       const { status, data } = error.response ?? {};
@@ -126,7 +129,7 @@ export function AccountAuthPage({ register = false }) {
       </form>
       <p className="orbit-switch">
         {register ? 'Bạn đã có tài khoản?' : 'Bạn chưa có tài khoản?'}{' '}
-        <Link to={register ? '/login' : '/register'}>{register ? 'Đăng nhập' : 'Đăng ký'}</Link>
+        <Link to={register ? '/login' : '/register'} state={returnState}>{register ? 'Đăng nhập' : 'Đăng ký'}</Link>
       </p>
     </AccountLayout>
   );

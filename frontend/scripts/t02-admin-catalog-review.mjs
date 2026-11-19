@@ -5,10 +5,13 @@ import { createServer } from 'node:net';
 import { randomBytes } from 'node:crypto';
 import assert from 'node:assert/strict';
 
-// Real Chrome + Laravel + MariaDB. No screenshots or mocked API responses.
+// Real Chrome + Laravel + MariaDB; no mocked API success responses.
+// --cart also stores desktop/mobile viewport previews in ignored testing storage.
 // Requires a NEW migrated database created by backend/scripts/catalog-test-database.php.
 const backend = resolve('../backend');
 const addressesReview = process.argv.includes('--addresses');
+const cartReview = process.argv.includes('--cart') || process.argv.includes('--cart-demo');
+const cartDemoReview = process.argv.includes('--cart-demo');
 const publishingReview = process.argv.includes('--publishing');
 const productsReview = process.argv.includes('--products') || publishingReview;
 const mediaRoot = resolve(backend, 'storage/framework/testing', 't03-media-' + Date.now());
@@ -32,8 +35,8 @@ const base = `http://localhost:${previewPort}`;
 const password = randomBytes(24).toString('hex');
 const env = { ...process.env, APP_ENV: 'testing', APP_DEBUG: 'false', APP_KEY: 'base64:' + randomBytes(32).toString('base64'), APP_URL: apiBase,
   DB_CONNECTION: 'mysql', DB_URL: '', DB_HOST: '127.0.0.1', DB_PORT: String(server.port), DB_DATABASE: metadata.database, DB_USERNAME: 'root', DB_PASSWORD: '',
-  CATALOG_TEST_DATABASE: metadata.database, T02_TEST_PASSWORD: password, CACHE_STORE: 'array', SESSION_DRIVER: addressesReview ? 'database' : 'file', SESSION_COOKIE: `t02_${Date.now()}`,
-  CORS_ALLOWED_ORIGINS: base, SANCTUM_STATEFUL_DOMAINS: `localhost:${previewPort},localhost:${apiPort}`, VITE_CATALOG_SOURCE: 'api', VITE_BACKEND_URL: apiBase };
+  CATALOG_TEST_DATABASE: metadata.database, T02_TEST_PASSWORD: password, CACHE_STORE: 'array', SESSION_DRIVER: addressesReview || cartReview ? 'database' : 'file', SESSION_COOKIE: `t02_${Date.now()}`,
+  CORS_ALLOWED_ORIGINS: base, SANCTUM_STATEFUL_DOMAINS: `localhost:${previewPort},localhost:${apiPort}`, VITE_CATALOG_SOURCE: cartDemoReview ? 'demo' : 'api', VITE_BACKEND_URL: apiBase };
 if (productsReview) env.CATALOG_MEDIA_ROOT = mediaRoot;
 function run(command, args, cwd) {
   const child = spawn(command, args, { cwd, env, windowsHide: true, stdio: 'pipe' });
@@ -59,7 +62,9 @@ const php = process.env.CATALOG_PHP || 'D:/xampp/php/php.exe';
 const opcodeArguments = process.env.CATALOG_PHP_OPCACHE === '1' ? ['-d', 'zend_extension=opcache', '-d', 'opcache.enable_cli=1', '-d', 'opcache.validate_timestamps=1', '-d', 'opcache.revalidate_freq=0'] : [];
 const startApi = () => run(php, [...opcodeArguments, '-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M', '-S', `localhost:${apiPort}`, '-t', '.', resolve(backend, 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php')], resolve(backend, 'public'));
 try {
-  console.log((await completion(run(php, ['scripts/t02-browser-fixtures.php', '--accounts-only'], backend))).trim());
+  const accountFixture = JSON.parse((await completion(run(php, ['scripts/t02-browser-fixtures.php', '--accounts-only'], backend))).trim());
+  assert.deepEqual(accountFixture.accounts, ['admin', 'customer']);
+  console.log(JSON.stringify(accountFixture));
   await completion(run(process.execPath, ['node_modules/vite/bin/vite.js', 'build', '--outDir', 'node_modules/.cache/t02-build'], process.cwd()));
   apiServer = startApi();
   preview = run(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', 'node_modules/.cache/t02-build', '--host', 'localhost', '--port', String(previewPort), '--strictPort'], process.cwd());
@@ -86,7 +91,7 @@ try {
     if (message.method === 'Runtime.exceptionThrown') exceptions.push(message.params.exceptionDetails.text);
     if (message.method === 'Network.requestWillBeSent') {
       const { request } = message.params;
-      if (request.url.startsWith(apiBase + '/api/' + (addressesReview ? 'customer/' : 'admin/')) && request.method !== 'GET' && request.method !== 'OPTIONS') mutations.push({ url: request.url.replace(apiBase, ''), method: request.method });
+      if (request.url.startsWith(apiBase + '/api/' + (addressesReview || cartReview ? 'customer/' : 'admin/')) && request.method !== 'GET' && request.method !== 'OPTIONS') mutations.push({ url: request.url.replace(apiBase, ''), method: request.method });
     }
     if (message.method === 'Network.responseReceived') {
       const { response } = message.params;
@@ -143,7 +148,15 @@ try {
   };
   await Promise.all([call('Page.enable'), call('Runtime.enable'), call('Network.enable')]);
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  if (addressesReview) {
+  if (cartReview) {
+    const fixture = (action) => completion(run(php, ['scripts/uc14-browser-fixtures.php', action], backend));
+    const data = JSON.parse(await fixture('setup'));
+    const { runCartScenarios } = await import('./uc14-cart-scenarios.mjs');
+    await runCartScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture, data, password, demo: cartDemoReview });
+    assert.deepEqual(exceptions, []);
+    await writeFile(resolve(backend, 'storage/framework/testing/uc14-t03-' + (cartDemoReview ? 'demo' : 'api') + '-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: cartDemoReview ? 'demo' : 'api', widths: [1440,768,390], checks, exceptions, network, mutations }, null, 2));
+    console.log(`PASS ${checks.length} UC14-T03 browser scenarios; ${network.length} real API responses; no Runtime exceptions.`);
+  } else if (addressesReview) {
     await completion(run(php, ['scripts/t05-browser-fixtures.php'], backend));
     const { runAddressScenarios } = await import('./t05-customer-address-scenarios.mjs');
     await runAddressScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture: (action) => completion(run(php, ['scripts/t05-browser-fixtures.php', action], backend)) });

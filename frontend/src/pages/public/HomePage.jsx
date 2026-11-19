@@ -1,8 +1,7 @@
 import { Link, useOutletContext } from 'react-router-dom';
 import { useCallback } from 'react';
 import useCatalog from '../../hooks/useCatalog';
-import { getHomeCatalog } from '../../services/catalogService';
-import CatalogStatus from '../../components/CatalogStatus';
+import { getHomeProducts } from '../../services/catalogService';
 import HeroCarousel from '../../components/HeroCarousel';
 import ProductSection from '../../components/ProductSection';
 import FlashDeals from '../../components/FlashDeals';
@@ -10,14 +9,20 @@ import CategoryRail from '../../components/CategoryRail';
 import Icon from '../../components/Icon';
 import { categoryUrl } from '../../utils/catalog';
 
+function HomeProductStrip({ title, category, promotion = false }) {
+  const loader = useCallback((options) => getHomeProducts({
+    sort: 'newest', per_page: promotion ? 4 : 5,
+    ...(promotion ? { promotion: 1 } : {}), ...(category ? { category } : {}),
+  }, options), [category, promotion]);
+  const strip = useCatalog(loader);
+  if (!strip.data) return null;
+  if (promotion) return <FlashDeals products={strip.data.products} />;
+  return <ProductSection title={title} subtitle={category ? undefined : 'Thêm lựa chọn cho công việc và cuộc sống'} products={strip.data.products} to={category ? categoryUrl(category) : '/products?sort=newest'} />;
+}
+
 export default function HomePage() {
   const catalog = useOutletContext();
-  const loader = useCallback((options) => getHomeCatalog(catalog.data.categories, options), [catalog.data]);
-  const home = useCatalog(catalog.data ? loader : null);
-  if (!catalog.data) return <CatalogStatus {...catalog} />;
-  if (!home.data) return <CatalogStatus {...home} />;
-  const { promotions, newest, sections, total } = home.data;
-  const categories = sections.map((section) => section.category);
+  const categories = (catalog.data?.categories || []).filter((category) => category.parent_id == null).slice(0, 3);
   return (
     <>
       <h1 className="visually-hidden">ShopHub — Công nghệ cho công việc, tiện nghi cho cuộc sống</h1>
@@ -35,10 +40,9 @@ export default function HomePage() {
         </article>)}
       </div></div></section>
       <CategoryRail categories={categories} />
-      {total === 0 && <div className="wrap"><div className="state-panel" role="status"><h2>Catalog chưa có sản phẩm công khai</h2><p>Vui lòng quay lại sau khi sản phẩm được cập nhật.</p></div></div>}
-      <FlashDeals products={promotions} />
-      <ProductSection title="Sản phẩm mới" subtitle="Thêm lựa chọn cho công việc và cuộc sống" products={newest} to="/products?sort=newest" />
-      {sections.map(({ category, products }) => <ProductSection key={category.slug} title={category.name} products={products} to={categoryUrl(category.slug)} />)}
+      <HomeProductStrip title="Khuyến mãi" promotion />
+      <HomeProductStrip title="Sản phẩm mới" />
+      {categories.map((category) => <HomeProductStrip key={category.slug} title={category.name} category={category.slug} />)}
     </>
   );
 }

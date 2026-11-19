@@ -1,8 +1,7 @@
 import { useCallback, useRef, useState } from 'react';
 import useCatalog from '../../hooks/useCatalog';
 import { getProductDetail, isDemoCatalog } from '../../services/catalogService';
-import { Link, useLocation, useOutletContext, useParams } from 'react-router-dom';
-import CatalogStatus from '../../components/CatalogStatus';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import ProductMedia from '../../components/ProductMedia';
 import RelatedProducts from '../../components/RelatedProducts';
 import Icon from '../../components/Icon';
@@ -137,12 +136,10 @@ function DetailContent({ product, category, onReload }) {
 export default function ProductDetailPage() {
   const { slug } = useParams();
   const location = useLocation();
-  const catalog = useOutletContext();
   const loader = useCallback((options) => getProductDetail(slug, options), [slug]);
-  const detail = useCatalog(loader);
-  if (!catalog.data) return <CatalogStatus {...catalog} />;
+  const detail = useCatalog(loader, { ignoreNotFound: true });
   if (detail.status === 404) return <NotFoundPage product />;
-  if (!detail.data) return <CatalogStatus {...detail} />;
+  if (!detail.data) return null;
   const { product } = detail.data;
   return <DetailContent key={`${product.slug}:${location.search}`} product={product} category={product.category} onReload={detail.retry} />;
 }

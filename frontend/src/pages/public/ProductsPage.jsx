@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
-import CatalogStatus from '../../components/CatalogStatus';
 import ProductCard from '../../components/ProductCard';
 import Icon from '../../components/Icon';
 import useCatalog from '../../hooks/useCatalog';
@@ -15,9 +14,8 @@ export default function ProductsPage() {
   const [error, setError] = useState(null);
   const [filtersOpen, setFiltersOpen] = useState(() => window.matchMedia('(min-width: 641px)').matches);
   const formError = error?.query === params.toString() ? error.message : '';
-  if (!catalog.data) return <CatalogStatus {...catalog} />;
-  if (!listing.data) return <CatalogStatus {...listing} />;
-  const { categories, brands } = catalog.data;
+  if (!listing.data) return null;
+  const { categories = [], brands = [], errors = {} } = catalog.data || {};
   const category = categories.find((item) => item.slug === params.get('category'));
   const { products: visible, meta } = listing.data;
   const pages = meta.last_page;
@@ -25,6 +23,10 @@ export default function ProductsPage() {
   function applyFilters(event) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
+    // Disabled/unavailable metadata must not silently clear the selected URL filter.
+    for (const key of ['category', 'brand']) {
+      if (!form.has(key) && params.has(key)) form.set(key, params.get(key));
+    }
     if (form.get('min_price') && form.get('max_price') && Number(form.get('min_price')) > Number(form.get('max_price'))) {
       setError({ query: params.toString(), message: 'Giá tối đa phải lớn hơn hoặc bằng giá tối thiểu.' });
       return;
@@ -61,13 +63,15 @@ export default function ProductsPage() {
             <summary><Icon name="filter" />Bộ lọc sản phẩm<Icon name="chevron" /></summary>
             <form id="catalog-filters" key={params.toString()} onSubmit={applyFilters}>
               <label htmlFor="filter-category">Danh mục</label>
-              <select id="filter-category" name="category" defaultValue={params.get('category') || ''}>
+              <select key={`category-${catalog.loading}`} id="filter-category" name="category" disabled={catalog.loading || !!errors.categories} defaultValue={params.get('category') || ''}>
                 <option value="">Tất cả danh mục</option>
+                {params.get('category') && !categories.some((item) => item.slug === params.get('category')) && <option value={params.get('category')}>Danh mục đang chọn</option>}
                 {categories.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
               </select>
               <label htmlFor="filter-brand">Thương hiệu</label>
-              <select id="filter-brand" name="brand" defaultValue={params.get('brand') || ''}>
+              <select key={`brand-${catalog.loading}`} id="filter-brand" name="brand" disabled={catalog.loading || !!errors.brands} defaultValue={params.get('brand') || ''}>
                 <option value="">Tất cả thương hiệu</option>
+                {params.get('brand') && !brands.some((item) => item.slug === params.get('brand')) && <option value={params.get('brand')}>Thương hiệu đang chọn</option>}
                 {brands.map((item) => <option key={item.slug} value={item.slug}>{item.name}</option>)}
               </select>
               <fieldset>

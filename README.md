@@ -31,7 +31,25 @@ Trong thư mục backend:
 3. Tạo database shophub.
 4. Chạy php artisan key:generate.
 5. Chạy php artisan migrate.
-6. Chạy php artisan serve --host=localhost --port=8000.
+6. Trên Windows/XAMPP, chạy `./scripts/serve-local.ps1 -Port 8000` trong PowerShell.
+
+Với môi trường Windows/XAMPP, bật **MySQL** trong XAMPP trước khi chạy backend.
+Script ở bước 6 kiểm tra kết nối DB chỉ đọc trước khi
+mở server, bật OPcache CLI và dừng sớm với thông báo nếu DB chưa sẵn sàng:
+
+```powershell
+./scripts/serve-local.ps1 -Port 8000
+# Hoặc kiểm tra DB riêng:
+php scripts/check-local-database.php
+```
+
+Khi gặp “Không kết nối được máy chủ”, kiểm tra MySQL/XAMPP, backend cổng 8000
+và frontend cổng 5173 trước khi thử lại. Ngày 19/11/2026 đã xác minh lỗi local
+do MariaDB cổng 3306 chưa chạy; sau khi bật lại, API sản phẩm trả HTTP 200 với
+13 sản phẩm công khai. Không cần migrate lại hoặc seed để xử lý lỗi kết nối này.
+`/api/health` kiểm tra ứng dụng HTTP; kết quả của endpoint này không thay thế
+kiểm tra truy vấn database. Log backend có thể cho biết lỗi DB, trong khi trình
+duyệt chỉ nhận lỗi mạng/timeout nếu request chưa có phản hồi HTTP.
 
 ## Dữ liệu demo sản phẩm
 
@@ -102,6 +120,46 @@ Frontend dùng giao diện chuyển từ **Bazaar** (uiCookies), thay lựa ch�
 Đặt `VITE_CATALOG_SOURCE=api` và `VITE_BACKEND_URL=http://localhost:8000` trong `frontend/.env`, rồi khởi động lại Vite/build lại. `.env.example` đã cấu hình API; nếu `.env` cũ của bạn còn `demo`, đổi sang `api` để xem database. Chỉ chọn rõ `VITE_CATALOG_SOURCE=demo` mới chạy fixture tại `frontend/src/data/demoCatalog.js`. Khi API lỗi, giao diện báo lỗi và cho thử lại, không tự chuyển demo.
 
 API đọc: `/api/public/categories`, `/api/public/brands`, `/api/public/products`, `/api/public/products/{slug}`. Xem [contract API](docs/api/public-catalog.md) và [kết quả triển khai/kiểm thử](docs/report/shophub-public-catalog-api-report.md).
+
+Luồng tải catalog tách sản phẩm khỏi danh mục/thương hiệu: lỗi bộ lọc không chặn
+danh sách hoặc chi tiết. Toàn trang có **một thông báo tải/lỗi và một nút Tải lại**
+để chạy lại các GET catalog bị lỗi cùng lúc; dữ liệu đã tải thành công tiếp tục
+hiển thị. Bộ lọc đang chọn trên URL được giữ khi metadata tạm lỗi. Tối đa hai
+GET dải sản phẩm chạy đồng thời. GET danh mục/thương hiệu đang
+chạy được dùng chung giữa các nơi gọi; chỉ kết quả thành công được cache trong
+bộ nhớ 30 giây, không lưu bền. Sản phẩm, giá, tồn và dữ liệu tài khoản/giỏ không
+được cache bởi cơ chế này. Không tự gửi lại POST thêm giỏ khi lỗi mạng/timeout.
+
+Kiểm tra service trong `frontend/` (HTTP giả lập để kiểm tra cạnh tranh/cache):
+
+```powershell
+node --experimental-vm-modules --test scripts/catalog-service.test.mjs
+```
+
+Kiểm tra giao diện bằng Chrome/Laravel/MariaDB thật, sau khi tạo **database test mới**
+và migrate theo hướng dẫn kiểm thử giỏ bên dưới:
+
+```powershell
+node scripts/t02-admin-catalog-review.mjs --catalog-resilience
+```
+
+Kịch bản chủ động chặn request, trả HTTP 503 hoặc giữ request đến timeout 10 giây;
+mọi phản hồi dữ liệu thành công lấy từ API thật. Kết quả và ảnh 1440/390px nằm
+trong `backend/storage/framework/testing/catalog-resilience-*` (được Git bỏ qua).
+
+Lượt sửa lỗi 19/11/2026, sau khi gộp nút tải lại: đạt 4 test service,
+15 kịch bản lỗi/phục hồi Chrome (58 response API) và hồi quy 21 kịch bản UC14
+(229 response API). Không có
+Runtime exception. Chrome mở Vite local với dữ liệu `shophub` thật cũng xác nhận
+trang chủ hiển thị đủ ba nhóm nổi bật; StrictMode chỉ gọi một GET danh mục và
+một GET thương hiệu. Build đạt, lint còn warning cũ ở `ConnectionPage.jsx:9`.
+
+Bổ sung theo phản hồi giao diện: đã gộp các nút thử lại và sửa working directory
+của launcher sang `backend/public` theo router Laravel. Backend mặc định
+`php artisan serve` trên XAMPP hiện tại chưa bật OPcache; đo tám GET đồng thời
+mất gần 10 giây. Chạy bằng `serve-local.ps1` sau khi sửa giảm cùng lượt đo xuống
+khoảng 1,4 giây (bao gồm khởi động cache), tránh hàng đợi vượt timeout 10 giây.
+Không cần sửa `php.ini`, tăng timeout frontend hoặc thay đổi dữ liệu sản phẩm.
 
 Để có dữ liệu active trên database local đã migrate, có thể chạy riêng trong `backend/`:
 
@@ -218,9 +276,9 @@ chọn database **riêng** theo hướng dẫn trong báo cáo; không chạy re
 dữ liệu giỏ tương ứng; xóa cứng SKU sẽ bỏ dòng giỏ của SKU đó. Các quan hệ này
 không áp dụng cho dữ liệu lịch sử đơn hàng.
 
-Giỏ chỉ lưu SKU và số lượng, chưa có API/UI thêm giỏ. Không tự tạo giỏ khi đăng
-ký, không giữ giá, không trừ/giữ tồn và không có seeder mới. Kiểm tra quyền,
-điều kiện bán, giới hạn theo tồn và transaction nghiệp vụ thuộc UC14-T02.
+Phần nền tảng T01 lưu SKU và số lượng. API và giao diện thêm giỏ đã có ở T02/T03
+bên dưới. Giỏ không tự tạo khi đăng ký, không giữ giá hoặc trừ/giữ tồn. T02 thực
+hiện kiểm tra quyền, điều kiện bán, giới hạn theo tồn và transaction nghiệp vụ.
 
 Migration mới đã chạy trên `shophub` local (MariaDB 10.11.16) ngày 19/11/2026,
 batch 7; chạy lại không phát sinh thay đổi. Số dòng và checksum của 18 bảng cũ
@@ -325,6 +383,48 @@ test lỗi bằng chặn mạng/đổi payload/cắt delivery sau server commit,
 response thành công. JSON kết quả và ảnh viewport 1440/390 nằm trong
 `backend/storage/framework/testing/` (ignored). Fixture helper T03 chỉ chạy trên
 database test được chọn rõ ràng. Không chạy helper trên `shophub` đang dùng.
+
+## Nghiệm thu thêm giỏ (UC14-T04 — 19/11/2026)
+
+Nghiệm thu bản mã nền `5a6d141` cùng phần bổ sung kiểm thử T04 trên nhánh
+`feature/uc14-add-to-cart`. Backend đạt **143 test, 2002 assertions**; nhóm cart
+và cạnh tranh chạy MariaDB 10.11.16 trên instance/datadir riêng, một số test auth
+và seeder cũ tiếp tục dùng SQLite in-memory cách ly theo thiết kế của chúng.
+
+Chrome đạt **21 kịch bản API thật, 229 phản hồi API**, không có Runtime exception.
+Gồm 17 kịch bản T03 và bốn ca mới: mất delivery của 201 tạo giỏ/dòng đầu tiên,
+trình duyệt chặn sessionStorage, SKU ngừng hoạt động trong lúc đăng nhập, và
+đối chiếu lần thêm cũ khi chuyển sang sản phẩm khác. Chế độ demo đạt một kịch
+bản riêng ở 1440px, không phát POST giỏ; UI API được kiểm tra ở 1440/768/390px
+và bàn phím. Build/lint, PHP syntax/Pint và diff check đạt; lint còn warning cũ
+`ConnectionPage.jsx:9` ngoài phạm vi UC14.
+
+Chạy lại bằng các database test riêng theo hướng dẫn chuẩn bị trong contract:
+
+```powershell
+# backend/: terminal đã xác minh DB test, migrate trước khi chạy test
+php artisan test --compact
+# frontend/: DB browser mới khác, đã migrate, chưa có account/fixture
+node scripts/t02-admin-catalog-review.mjs --cart-acceptance
+# DB browser demo mới khác, đã migrate, chưa có account/fixture
+node scripts/t02-admin-catalog-review.mjs --cart-acceptance --cart-demo
+```
+
+Kết quả và ảnh viewport được lưu riêng với prefix `uc14-t04-` trong
+`backend/storage/framework/testing/` (ignored), không ghi đè bằng chứng T03.
+Xem [ma trận nghiệm thu](docs/api/customer-cart.md#ma-trận-nghiệm-thu-uc14-t04).
+
+Giới hạn lượt T04: kết nối đọc schema `shophub` local ở 127.0.0.1:3306 bị từ
+chối, nên chưa đối chiếu lại metadata local trong lượt này; kết quả migrate
+local T01 ở trên là bằng chứng của lượt trước. T04 không migrate/seed/reset dữ
+liệu local. Giao diện được kiểm tra bằng Chrome emulation, chưa kiểm tra thiết
+bị vật lý hoặc trình duyệt khác. Trang xem/sửa giỏ và checkout vẫn là UC riêng.
+
+Bổ sung sau xử lý lỗi API cùng ngày: MariaDB local đã được bật lại; đã đọc
+schema `shophub` thành công, xác nhận hai migration giỏ ở batch 7, FK/index và
+CHECK `cart_items_quantity_positive` còn đầy đủ. Kết quả chỉ đọc lưu tại
+`storage/framework/testing/uc14-t04-local-results.json`; không migrate/seed/reset
+database local trong lượt sửa lỗi.
 
 ## Địa chỉ local
 

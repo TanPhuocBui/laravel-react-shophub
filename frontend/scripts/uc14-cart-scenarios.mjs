@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
-export async function runCartScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture, data, password, demo }) {
+export async function runCartScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture, data, password, demo, acceptance = false }) {
   const path = '/products/' + data.slug;
   const submit = '[data-testid="cart-add-submit"]';
   const check = '[data-testid="cart-check-result"]';
@@ -80,6 +80,59 @@ export async function runCartScenarios({ call, evaluate, click, fill, navigate, 
   await click('.address-form button[type="submit"]');
   await waitFor(() => !document.querySelector('.address-form') && !!document.querySelector('.address-card'), 'address saved');
   pass('Ordinary login still opens /account; existing address UI saves and reads a real address on the isolated DB.');
+
+  if (acceptance) {
+    await logout(); await login('first'); await open();
+    assert.equal((await summary()).item_count, 0);
+    const beforeFirst = writes(); let firstCreated = 0;
+    await fill({ '#cart-quantity': '2' });
+    await intercept('Response', async (request) => {
+      assert.equal(request.responseStatusCode, 201); firstCreated++;
+      await call('Fetch.failRequest', { requestId: request.requestId, errorReason: 'ConnectionClosed' });
+    }, async () => { await click(submit); await waitFor(() => !!document.querySelector('[data-testid="cart-check-result"]'), 'unknown first create'); });
+    await open(); await waitFor(() => !!document.querySelector('[data-testid="cart-check-result"]'), 'first create marker after refresh');
+    await click(check); await waitFor(() => !document.querySelector('[data-testid="cart-check-result"]') && !!document.querySelector('[data-testid="cart-success"]'), 'first create reconciliation');
+    const firstSummary = await summary();
+    assert.equal(firstCreated, 1); assert.equal(writes() - beforeFirst, 1);
+    assert.equal(firstSummary.item_count, 1); assert.equal(firstSummary.selected_item.quantity, 2);
+    pass('T04 first-cart/first-line 201 is committed but delivery lost: refresh preserves the marker; read-only check confirms exactly one line with quantity 2 and no repeat POST.');
+
+    await logout(); await login('customer'); await open(); await fill({ '#cart-quantity': '3' });
+    const beforeStorage = writes();
+    await evaluate(() => {
+      window.__uc14StorageSet = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key, value) {
+        if (key.startsWith('shophub:cart-pending:')) throw new DOMException('Test storage denied', 'SecurityError');
+        return window.__uc14StorageSet.call(this, key, value);
+      };
+    });
+    try {
+      await click(submit);
+      await waitFor(() => document.querySelector('.cart-error')?.textContent.includes('Chưa thể lưu trạng thái'), 'blocked journal storage');
+      assert.equal(writes(), beforeStorage);
+      assert.equal(await evaluate(() => document.querySelector('#cart-quantity').value), '3');
+      assert(!await evaluate(() => !!document.querySelector('[data-testid="cart-check-result"]')));
+      assert.equal((await summary()).item_count, 0);
+    } finally {
+      await evaluate(() => { Storage.prototype.setItem = window.__uc14StorageSet; delete window.__uc14StorageSet; });
+    }
+    pass('T04 blocked sessionStorage is detected after CSRF bootstrap and before POST; input is preserved, no cart line or unknown-write marker is created.');
+
+    await logout(); await open(); await select(1); await fill({ '#cart-quantity': '2' });
+    const beforeUnavailableReturn = writes();
+    await click(submit); await waitFor(() => location.pathname === '/login' && !document.querySelector('.orbit-submit')?.disabled, 'login for previously selected SKU');
+    await fixture('hide-silver');
+    await fill({ '#email': 't02-customer@shophub.invalid', '#password': password }); await click('.orbit-submit');
+    await waitFor(() => !!document.querySelector('.cart-selection-notice'), 'restored SKU no longer available'); await ready();
+    assert(await evaluate(() => document.querySelector('[data-testid="cart-add-submit"]').disabled));
+    assert.equal(writes(), beforeUnavailableReturn);
+    await select(0);
+    assert(!await evaluate(() => !!document.querySelector('.cart-selection-notice')));
+    assert(!await evaluate(() => document.querySelector('[data-testid="cart-add-submit"]').disabled));
+    assert.equal(writes(), beforeUnavailableReturn);
+    await fixture('show-silver');
+    pass('T04 a SKU disabled during login is not silently replaced: Add stays blocked until explicit reselection, with no implicit POST during login or reselection.');
+  }
 
   await open(); await fill({ '#cart-quantity': '2' });
   const beforeDouble = writes();
@@ -174,6 +227,30 @@ export async function runCartScenarios({ call, evaluate, click, fill, navigate, 
   assert((await evaluate(() => document.querySelector('[data-testid="cart-success"]').textContent)).includes(`hiện có ${previous + 1}`));
   pass('Server commits but response delivery is dropped: refresh preserves the check, a different account sees none, the same account recovers; failed/successful GET checks never replay POST.');
 
+  if (acceptance) {
+    await open(); await fill({ '#cart-quantity': '1' });
+    const oldQuantity = (await summary()).selected_item.quantity;
+    const beforeOtherProduct = writes();
+    await intercept('Response', async (request) => {
+      assert.equal(request.responseStatusCode, 200);
+      await call('Fetch.failRequest', { requestId: request.requestId, errorReason: 'ConnectionClosed' });
+    }, async () => { await click(submit); await waitFor(() => !!document.querySelector('[data-testid="cart-check-result"]'), 'pending original product'); });
+    await navigate('/products/' + data.other_slug); await ready();
+    await waitFor(() => !!document.querySelector('[data-testid="cart-check-result"]'), 'pending marker on another product');
+    assert((await evaluate(() => document.querySelector('.cart-reconcile').textContent)).includes('Kiểm tra thêm giỏ'));
+    assert((await evaluate(() => document.querySelector('.pdp-info h1').textContent)).includes('Sản phẩm đối chiếu khác'));
+    assert(await evaluate(() => document.querySelector('[data-testid="cart-add-submit"]').disabled));
+    const quantityBeforeRead = (await summary()).selected_item.quantity;
+    assert.equal((await summary(data.other_variant_id)).selected_item, null);
+    await click(check); await waitFor(() => !document.querySelector('[data-testid="cart-check-result"]') && !!document.querySelector('[data-testid="cart-success"]'), 'cross-product reconciliation');
+    assert.equal(writes() - beforeOtherProduct, 1);
+    assert.equal(quantityBeforeRead, oldQuantity + 1);
+    assert.equal((await summary()).selected_item.quantity, oldQuantity + 1);
+    assert.equal((await summary(data.other_variant_id)).selected_item, null);
+    assert((await evaluate(() => document.querySelector('[data-testid="cart-success"]').textContent)).includes('Kiểm tra thêm giỏ'));
+    pass('T04 switching to another product keeps the original product label/SKU for reconciliation, blocks Add and only reads the original line; the new product is not added.');
+  }
+
   await open();
   const beforeLeaving = writes();
   const quantityBeforeLeaving = (await summary()).selected_item.quantity;
@@ -241,7 +318,7 @@ export async function runCartScenarios({ call, evaluate, click, fill, navigate, 
     await success(); assert.equal((await summary()).selected_item.quantity, before + 1);
     if (width !== 768) {
       const preview = await call('Page.captureScreenshot', { format: 'png', captureBeyondViewport: false });
-      await writeFile(resolve('../backend/storage/framework/testing', `uc14-t03-${width}.png`), Buffer.from(preview.data, 'base64'));
+      await writeFile(resolve('../backend/storage/framework/testing', `uc14-${acceptance ? 't04' : 't03'}-${width}.png`), Buffer.from(preview.data, 'base64'));
     }
     pass(width + 'px: no page overflow, visible Tab focus and keyboard Enter add through real API.');
   }

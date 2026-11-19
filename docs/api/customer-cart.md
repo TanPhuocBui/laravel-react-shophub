@@ -1,4 +1,4 @@
-# Giỏ khách hàng — UC14-T02
+# Giỏ khách hàng — UC14 (T01–T04)
 
 Prefix `/api/customer/cart`. Sanctum SPA session/cookie, middleware tài khoản
 active và Gate `manage-cart` dành cho customer. Mutation cần CSRF theo cấu hình
@@ -186,3 +186,42 @@ instance đó trước), vì fixture không chiếm account/catalog đã có. Sa
 tra, đối chiếu PID/port/datadir trong `storage/framework/testing/catalog-test-server.json`
 để dừng đúng instance test; không dừng MySQL XAMPP đang phục vụ `shophub`. Không
 ghi password test vào lệnh: harness tự tạo password ngẫu nhiên trong bộ nhớ.
+
+## Ma trận nghiệm thu UC14-T04
+
+Lượt 19/11/2026 dùng bản mã nền `5a6d141` cùng diff công cụ T04. Mọi thao tác
+ghi và rollback kiểm thử chạy trên database test được chọn rõ ràng. Không
+thêm API, schema hoặc thay nghiệp vụ ở T04.
+
+| Tiêu chí | Bằng chứng kiểm tra | Kết quả |
+|---|---|---|
+| Một cart/user, một dòng/SKU; FK, CHECK, casts/quan hệ | CartFoundationTest: ghi DB thật, trường hợp hợp lệ/vi phạm, cascade, rollback và migrate lại hai migration mới | Đạt |
+| Thêm mới/cộng cùng SKU, tách SKU, lưu sau refresh | CartApiTest; Chrome API và read-back | Đạt |
+| Auth/role/active/owner, payload ngoài contract | CartApiTest, service với actor cũ; Chrome cookie/CSRF, 401/403 và đổi tài khoản | Đạt |
+| Điều kiện public, tồn và giá hiện tại, giới hạn integer | CartApiTest; Chrome 404/409/422 và ngừng SKU trong lúc login | Đạt |
+| Không giữ giá/tồn; lỗi rollback đầy đủ | CartFoundationTest, CartApiTest và hai customer cùng thêm SKU cuối trong CartConcurrencyTest | Đạt |
+| Không trùng/lost update; đọc snapshot; tương thích Admin hide | 7 ca CartConcurrencyTest, các process/kết nối MariaDB độc lập và lock wait thật | Đạt |
+| Login/register quay lại lựa chọn, xác nhận thêm riêng | Chrome đăng ký/login/phiên hết hạn; return context ngoài website bị từ chối | Đạt |
+| Mất delivery 200/201, refresh/rời trang, đối chiếu tài khoản/sản phẩm | Chrome cắt response sau server commit, chỉ GET đối chiếu; không tự phát lại POST | Đạt |
+| Chặn storage trước POST, lỗi CSRF trước/sau gửi, GET đối chiếu lỗi | Chrome chặn storage/mạng, bỏ header CSRF, backend trả lỗi thật | Đạt |
+| Responsive, bàn phím, demo, hồi quy tài khoản/catalog/địa chỉ | Chrome API 1440/768/390px, demo 1440px; backend suite; build/lint | Đạt |
+
+Backend: `php artisan test --compact` đạt 143 test/2002 assertions trên DB test
+riêng; các ca cart/concurrency chạy MariaDB, các test auth/seeder cũ dùng SQLite
+in-memory vẫn được phân biệt. Browser `--cart-acceptance` đạt 21 kịch bản/229
+response API thật; `--cart-acceptance --cart-demo` đạt một kịch bản demo và
+không có POST giỏ. Cả hai không có Runtime exception. Kết quả JSON/ảnh T04 lưu
+trong testing storage ignored, tách khỏi T03. Viewport trong JSON demo chỉ ghi
+1440px đã thực sự chạy.
+
+Giới hạn: đọc lại schema local 127.0.0.1:3306 không kết nối được, không coi là
+PASS metadata local; nghiệm thu schema dùng MariaDB test và không sửa dữ liệu
+`shophub`. Kiểm tra UI bằng Chrome emulation; chưa có bằng chứng thiết bị vật
+lý/trình duyệt khác. Không diễn giải submit guard hoặc summary thành backend
+idempotency: mỗi POST thành công vẫn là một lần cộng.
+
+Bổ sung sau khôi phục API ngày 19/11/2026: MariaDB local cổng 3306 đã chạy lại.
+Kiểm tra chỉ đọc `shophub` xác nhận hai migration giỏ batch 7, các cột/FK/index
+và CHECK số lượng; giới hạn không kết nối được ở lượt T04 phía trên đã được
+giải quyết. Không migrate/seed/reset local; snapshot metadata được lưu trong
+`backend/storage/framework/testing/uc14-t04-local-results.json` (ignored).

@@ -10,7 +10,9 @@ import assert from 'node:assert/strict';
 // Requires a NEW migrated database created by backend/scripts/catalog-test-database.php.
 const backend = resolve('../backend');
 const addressesReview = process.argv.includes('--addresses');
-const cartReview = process.argv.includes('--cart') || process.argv.includes('--cart-demo');
+const cartAcceptance = process.argv.includes('--cart-acceptance');
+const catalogResilience = process.argv.includes('--catalog-resilience');
+const cartReview = process.argv.includes('--cart') || process.argv.includes('--cart-demo') || cartAcceptance || catalogResilience;
 const cartDemoReview = process.argv.includes('--cart-demo');
 const publishingReview = process.argv.includes('--publishing');
 const productsReview = process.argv.includes('--products') || publishingReview;
@@ -148,14 +150,22 @@ try {
   };
   await Promise.all([call('Page.enable'), call('Runtime.enable'), call('Network.enable')]);
   await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
-  if (cartReview) {
-    const fixture = (action) => completion(run(php, ['scripts/uc14-browser-fixtures.php', action], backend));
-    const data = JSON.parse(await fixture('setup'));
-    const { runCartScenarios } = await import('./uc14-cart-scenarios.mjs');
-    await runCartScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture, data, password, demo: cartDemoReview });
+  if (catalogResilience) {
+    const data = JSON.parse(await completion(run(php, ['scripts/uc14-browser-fixtures.php', 'setup'], backend)));
+    const { runCatalogResilienceScenarios } = await import('./catalog-resilience-scenarios.mjs');
+    await runCatalogResilienceScenarios({ call, evaluate, click, navigate, waitFor, pass, apiBase, ws, data, backend });
     assert.deepEqual(exceptions, []);
-    await writeFile(resolve(backend, 'storage/framework/testing/uc14-t03-' + (cartDemoReview ? 'demo' : 'api') + '-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: cartDemoReview ? 'demo' : 'api', widths: [1440,768,390], checks, exceptions, network, mutations }, null, 2));
-    console.log(`PASS ${checks.length} UC14-T03 browser scenarios; ${network.length} real API responses; no Runtime exceptions.`);
+    assert.deepEqual(mutations, []);
+    await writeFile(resolve(backend, 'storage/framework/testing/catalog-resilience-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, checks, exceptions, network, mutations }, null, 2));
+    console.log(`PASS ${checks.length} catalog resilience scenarios; ${network.length} API responses; no mutations or Runtime exceptions.`);
+  } else if (cartReview) {
+    const fixture = (action) => completion(run(php, ['scripts/uc14-browser-fixtures.php', action], backend));
+    const data = JSON.parse(await fixture(cartAcceptance && !cartDemoReview ? 'setup-acceptance' : 'setup'));
+    const { runCartScenarios } = await import('./uc14-cart-scenarios.mjs');
+    await runCartScenarios({ call, evaluate, click, fill, navigate, waitFor, browserApi, pass, mutations, login, apiBase, ws, fixture, data, password, demo: cartDemoReview, acceptance: cartAcceptance });
+    assert.deepEqual(exceptions, []);
+    await writeFile(resolve(backend, 'storage/framework/testing/uc14-' + (cartAcceptance ? 't04' : 't03') + '-' + (cartDemoReview ? 'demo' : 'api') + '-browser-results.json'), JSON.stringify({ database: metadata.database, driver: 'mysql', server: metadata.server, source: cartDemoReview ? 'demo' : 'api', widths: cartDemoReview ? [1440] : [1440,768,390], checks, exceptions, network, mutations }, null, 2));
+    console.log(`PASS ${checks.length} UC14-${cartAcceptance ? 'T04' : 'T03'} browser scenarios; ${network.length} real API responses; no Runtime exceptions.`);
   } else if (addressesReview) {
     await completion(run(php, ['scripts/t05-browser-fixtures.php'], backend));
     const { runAddressScenarios } = await import('./t05-customer-address-scenarios.mjs');

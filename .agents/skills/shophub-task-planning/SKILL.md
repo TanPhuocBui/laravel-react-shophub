@@ -1,28 +1,38 @@
 ---
 name: shophub-task-planning
-description: Lập hoặc rà soát Mini Plan và kiến trúc cho thay đổi nghiệp vụ ShopHub. Dùng khi chia task theo use case, chốt contract hoặc tiếp tục công việc Laravel và React theo từng phần có thể nghiệm thu.
+description: Lập hoặc tiếp tục kế hoạch triển khai ShopHub trên Laravel, React và MariaDB/MySQL. Dùng để xác định người thực hiện, hiện trạng, kiến trúc, phụ thuộc, phạm vi file và tiêu chí nghiệm thu trước khi sửa một tính năng.
 ---
 
 # Lập kế hoạch ShopHub
 
-Đọc [hướng dẫn repo](../../../AGENTS.md), [kiến trúc nghiệp vụ](../../../docs/design/SHOPHUB_BUSINESS_ARCHITECTURE.md) và phần liên quan trong [danh mục use case](../../../docs/design/shophub-usecase-system.md). Với thay đổi dữ liệu, đọc [ERD](../../../docs/design/shophub-erd.md) và migration liên quan. Ưu tiên bằng chứng trên nhánh đang làm khi xác định hiện trạng.
+Dùng cho task có phạm vi triển khai cụ thể. Đọc [hướng dẫn repo](../../../AGENTS.md), [kiến trúc nghiệp vụ ShopHub](../../../docs/design/SHOPHUB_BUSINESS_ARCHITECTURE.md) và UC tương ứng trong [danh mục use case](../../../docs/design/shophub-usecase-system.md). Với task liên quan đến dữ liệu, đọc thêm [ERD](../../../docs/design/shophub-erd.md).
 
-## Trước khi sửa
+## Xác định hiện trạng
 
-- Ghi nhận nhánh, trạng thái Git và diff có sẵn. Khi tiếp tục một task, kiểm lại điểm đã bàn giao và bằng chứng đã có.
-- Truy vết entry point theo chiều người dùng thao tác. Đọc route, middleware, Form Request, controller, service, model, Resource, nơi frontend gọi API và kiểm thử liên quan theo phạm vi task.
-- Xác định tác nhân, quyền sở hữu, dữ liệu đầu vào, bất biến và kết quả. Với nghiệp vụ ghi dữ liệu, chỉ rõ bên quyết định giá/tồn/trạng thái, phạm vi transaction, thứ tự khóa và kết quả khi gửi lại hoặc ghi cạnh tranh.
-- Tách điều repo đã hỗ trợ, điều thiết kế đã chốt và quyết định còn mở. Nếu có quyết định nghiệp vụ quan trọng chưa đủ căn cứ, tiếp tục phần độc lập và hỏi riêng phần bị ảnh hưởng.
+1. Ghi nhận nhánh Git, HEAD và diff hiện có. Dùng working tree hiện tại làm mốc đối chiếu khi có thay đổi đã được chấp nhận và còn chưa commit.
+2. Truy từ điểm vào của người dùng qua route đã đăng ký, middleware, validation, quyền, controller, service, persistence và Resource. Kiểm tra phía gọi API và bộ test liên quan. Đọc schema, migration và seeder nếu task chạm tới dữ liệu.
+3. Xác định phần đã chạy, phần dùng contract cũ, bản xem trước và phần phụ thuộc UC khác. Xác minh route và hành vi có thể quan sát trước khi coi chức năng là sẵn sàng.
+4. Xác định tác nhân nghiệp vụ, quyền sở hữu dữ liệu, người phụ trách nếu đã được chỉ định, phạm vi file được giao và các phụ thuộc dùng chung. Nêu contract phụ thuộc và người phụ trách nếu đã biết.
+5. Chia từng UC thành phần có thể nghiệm thu riêng. Dùng khoảng 30–90 phút để ước lượng một phần triển khai phù hợp khi có đủ căn cứ. Khi phạm vi gồm tính năng người dùng hoàn chỉnh, lập kế hoạch cho cả backend, frontend và kiểm tra điểm vào thật. Giữ task riêng ở phạm vi được giao, ví dụ API đọc giỏ của UC15.
+
+## Áp dụng kiến trúc ShopHub
+
+- Backend đi theo route và middleware → Form Request khi có input cần validate → controller → service và Eloquent → API Resource. Form Request và Gate/Policy kiểm tra quyền ở biên HTTP. Controller điều phối và trả status phù hợp. Service giữ bất biến nghiệp vụ và phạm vi transaction.
+- Tái sử dụng model, quan hệ, scope và service hiện có. Tách lớp khi có trách nhiệm riêng rõ ràng. Kiểm tra các consumer của endpoint hiện có trước khi thay đổi URL, status hoặc cấu trúc JSON.
+- Lập kế hoạch kiểm tra input thô trước khi ép kiểu nếu kiểu dữ liệu hoặc thứ tự lỗi có ý nghĩa. Lấy tác nhân từ phiên đã xác thực. Với thao tác ghi, nêu nguồn quyết định giá, tồn, trạng thái, thứ tự khóa và cách xử lý khi gửi lại hoặc ghi cạnh tranh.
+- Frontend đi theo page/component → domain service → Axios chung. Nêu shape dữ liệu mà UI cần, cách ánh xạ lỗi, xử lý request cũ, session/CSRF và đối chiếu khi mất phản hồi sau thao tác ghi. Nếu ưu tiên UI, tách bản xem trước bằng dữ liệu mẫu khỏi bước tích hợp và nghiệm thu API thật.
+- Liệt kê contract và quyết định nghiệp vụ còn mở, như cách tính tạm tính hoặc điều kiện chuyển trạng thái. Chốt các điểm ảnh hưởng thực chất trước khi triển khai phần phụ thuộc. Tiếp tục các phần độc lập đã có đủ căn cứ.
 
 ## Mini Plan trên chat
 
-1. **Mục tiêu và hiện trạng.** Nêu UC, tác nhân, đường vào, phần đã có và khoảng trống.
-2. **Ranh giới kiến trúc.** Nêu trách nhiệm từng tầng và nơi tái sử dụng code. Backend theo middleware và Form Request, controller, service, Eloquent, Resource. Frontend theo page, domain service, Axios chung.
-3. **Dữ liệu và contract.** Nêu request/response, quyền, lỗi và quy tắc nghiệp vụ liên quan. Đánh dấu endpoint đề xuất và quyết định còn mở.
-4. **Phạm vi file.** Liệt kê file hoặc nhóm file dự kiến tạo/sửa và lý do. Ghi rõ phần phụ thuộc đang nằm ở UC khác.
-5. **Chia task và thứ tự.** Mỗi task có đầu vào, mini plan thao tác, đầu ra và cách kiểm chứng. Dùng mốc bàn giao có thể xem hoặc kiểm tra riêng.
-6. **Tiêu chí nghiệm thu.** Gắn mỗi tiêu chí với hành vi quan sát được và cách kiểm tra dự kiến. Dùng mã AC khi có nhiều tiêu chí cần theo dõi.
+Trình bày đủ bảy phần và giữ độ chi tiết tương xứng với task.
 
-Nếu ưu tiên thiết kế UI, xác định trước các trạng thái hiển thị và giả định contract, rồi tách bản xem trước khỏi bước tích hợp. Ví dụ với giỏ hàng, ghi rõ cách biểu diễn SKU hết hàng, cách tính tạm tính và cách cập nhật số lượng khi dữ liệu đã đổi ở tab khác. Dữ liệu mẫu chỉ chứng minh bố cục và hành vi bản xem trước.
+1. **Mục tiêu, hiện trạng và khoảng trống.** Nêu UC, tác nhân, điểm vào và kết quả cần đạt.
+2. **Cách làm và ranh giới backend/frontend.** Nêu trách nhiệm, mã tái sử dụng và nơi xử lý từng quyết định.
+3. **Schema, nghiệp vụ và contract API.** Nêu dữ liệu, request/response, quyền, lỗi, hợp đồng hiện có và các quyết định còn mở.
+4. **Kế hoạch kiểm chứng.** Nêu cách kiểm tra luồng thành công, lỗi, quyền sở hữu và các tình huống runtime như rollback, cạnh tranh hoặc thao tác trình duyệt khi liên quan.
+5. **Bảng file dự kiến.** Ghi đường dẫn từng file, hành động tạo/sửa/xóa và lý do. Đánh dấu file còn phụ thuộc quyết định hoặc kết quả rà soát.
+6. **Tiêu chí nghiệm thu.** Gán mã như `AC-01`, `AC-02`. Gắn mỗi tiêu chí với hành vi quan sát được, bằng chứng dự kiến và trạng thái ban đầu.
+7. **Thứ tự triển khai, phụ thuộc, rủi ro và ước lượng.** Nếu chia nhiều task, nêu đầu vào, các bước và đầu ra kiểm chứng được của từng task.
 
-Khi người dùng chỉ yêu cầu kế hoạch, bàn giao Mini Plan. Khi đã giao triển khai, chia sẻ Mini Plan ngắn và thực hiện phần đã được giao. Điều chỉnh kế hoạch khi mã nguồn cho thấy giả định ảnh hưởng đến nghiệp vụ hoặc cách kiểm chứng.
+Bàn giao Mini Plan khi người dùng chỉ yêu cầu lập kế hoạch hoặc phần tiếp theo cần phê duyệt. Khi đã được giao triển khai, tiếp tục phạm vi đã giao sau Mini Plan. Khi tiếp tục kế hoạch đã chốt, xác minh hiện trạng và bắt đầu từ mốc cuối đã kiểm chứng. Ghi quyết định và bằng chứng vào tài liệu hoặc checklist liên quan nếu có trong phạm vi. Cập nhật plan khi có thông tin làm thay đổi nghiệp vụ, contract hoặc tiêu chí nghiệm thu.

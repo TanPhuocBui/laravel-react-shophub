@@ -16,6 +16,8 @@ class CartService
 {
     public const MAX_QUANTITY = 4294967295;
 
+    private const MAX_JSON_INTEGER = 9_007_199_254_740_991;
+
     private function lockOwner(User $actor): User
     {
         $owner = User::lockForUpdate()->findOrFail($actor->getKey());
@@ -84,6 +86,64 @@ class CartService
             $item->save();
 
             return ['item' => $item, 'summary' => $this->totals($cart), 'created' => $created];
+        }, 3);
+    }
+
+    public function details(User $actor): array
+    {
+        return DB::transaction(function () use ($actor) {
+            $owner = $this->lockOwner($actor);
+            $cart = $owner->cart()->lockForUpdate()->first();
+            $items = [];
+            $totalQuantity = 0;
+            $subtotal = 0;
+
+            $lines = $cart?->items()->with([
+                'productVariant.product.category',
+                'productVariant.product.brand',
+                'productVariant.product.images' => fn ($images) => $images->limit(1),
+            ])->orderBy('id')->get() ?? [];
+
+            // Sum the same loaded lines that are serialized in the response.
+            foreach ($lines as $item) {
+                $variant = $item->productVariant;
+                $product = $variant?->product;
+                $visible = $variant?->is_active && $product?->status === Product::STATUS_ACTIVE
+                    && $product->category?->is_active && $product->brand?->is_active;
+                $status = match (true) {
+                    ! $visible => 'unavailable',
+                    ! $variant->hasValidPrices() => 'invalid_price',
+                    $variant->stock_quantity <= 0 => 'out_of_stock',
+                    $item->quantity > $variant->stock_quantity => 'insufficient_stock',
+                    default => 'available',
+                };
+                $lineTotal = null;
+
+                if ($status === 'available') {
+                    if ($item->quantity > intdiv(self::MAX_JSON_INTEGER - $subtotal, $variant->sale_price)) {
+                        throw new CartConflictException('Tạm tính giỏ hàng vượt quá giới hạn cho phép.', 'CART_AMOUNT_LIMIT');
+                    }
+                    $lineTotal = $variant->sale_price * $item->quantity;
+                    $subtotal += $lineTotal;
+                }
+
+                if ($item->quantity > self::MAX_JSON_INTEGER - $totalQuantity) {
+                    throw new CartConflictException('Tổng số lượng giỏ hàng vượt quá giới hạn cho phép.', 'CART_QUANTITY_LIMIT');
+                }
+                $totalQuantity += $item->quantity;
+                $items[] = [
+                    'item' => $item,
+                    'visible_variant' => $visible ? $variant : null,
+                    'availability' => $status,
+                    'line_total' => $lineTotal,
+                ];
+            }
+
+            return ['items' => $items, 'summary' => [
+                'item_count' => count($items),
+                'total_quantity' => $totalQuantity,
+                'subtotal' => $subtotal,
+            ]];
         }, 3);
     }
 

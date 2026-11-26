@@ -5,13 +5,22 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\AddCartItemRequest;
 use App\Http\Requests\CartSummaryRequest;
+use App\Http\Resources\CartDetailsResource;
 use App\Http\Resources\CartItemResource;
 use App\Http\Resources\CartSummaryResource;
 use App\Services\CartService;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 
 class CustomerCartController extends Controller
 {
+    public function show(Request $request, CartService $service): JsonResponse
+    {
+        return (new CartDetailsResource($service->details($request->user())))
+            ->response()
+            ->header('Cache-Control', 'private, no-store');
+    }
+
     public function store(AddCartItemRequest $request, CartService $service): JsonResponse
     {
         $data = $request->validated();

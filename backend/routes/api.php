@@ -42,6 +42,7 @@ Route::prefix('customer')->name('customer.')->middleware(['auth:sanctum', Ensure
 });
 
 Route::prefix('customer/cart')->name('customer.cart.')->middleware(['auth:sanctum', EnsureAccountIsActive::class, 'can:manage-cart'])->group(function () {
+    Route::get('/', [CustomerCartController::class, 'show'])->name('show');
     Route::post('items', [CustomerCartController::class, 'store'])->name('items.store');
     Route::get('summary', [CustomerCartController::class, 'summary'])->name('summary');
 });

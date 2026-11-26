@@ -1,11 +1,12 @@
-# Giỏ khách hàng — UC14 (T01–T04)
+# API giỏ hàng khách hàng — UC14 và UC15
 
 Prefix `/api/customer/cart`. Sanctum SPA session/cookie, middleware tài khoản
 active và Gate `manage-cart` dành cho customer. Mutation cần CSRF theo cấu hình
 Sanctum hiện có. Không nhận token bearer cho luồng SPA này.
 
-API chỉ triển khai thêm SKU và đọc tổng hợp để đối chiếu kết quả. Danh sách giỏ,
-đổi/xóa dòng và checkout thuộc UC15, UC16, UC18. Schema/model đã có từ UC14-T01.
+UC14 thêm SKU và đọc tổng hợp để đối chiếu kết quả. UC15 đọc danh sách đầy đủ
+của giỏ. Đổi số lượng, xóa dòng và checkout thuộc UC16 và UC18. Schema/model đã
+có từ UC14-T01.
 
 ## Endpoint và payload
 
@@ -13,6 +14,53 @@ API chỉ triển khai thêm SKU và đọc tổng hợp để đối chiếu k�
 |---|---|---|
 | POST | `/api/customer/cart/items` | 201 tạo dòng SKU mới; 200 cộng số lượng vào dòng đã có |
 | GET | `/api/customer/cart/summary` | 200, đọc tổng hợp của chính customer |
+| GET | `/api/customer/cart` | 200, đọc các dòng giỏ, điều kiện bán và tạm tính của chính customer |
+
+### Đọc toàn bộ giỏ (UC15)
+
+URL này lấy chủ giỏ từ phiên hiện tại. Response `200` có
+`Cache-Control: private, no-store`. Khách chưa đăng nhập nhận `401`.
+Tài khoản sai vai trò hoặc bị khóa nhận `403`. Giỏ chưa tồn tại và giỏ rỗng
+cùng trả `data.items: []` với ba số trong `summary` bằng 0. Lượt đọc không
+tạo giỏ, thay đổi số lượng hoặc giữ tồn kho.
+
+Mỗi dòng có `id` (ID dòng giỏ), `product_variant_id`, `quantity` đã lưu,
+`product` (gồm `name`, `slug`, `image_url`, `image_alt`),
+`variant` (gồm `name`, `sku`), `stock_quantity`, `unit_price`,
+`line_total` và `availability`. Thứ tự dòng theo ID tăng dần. Ảnh chính lấy
+theo `sort_order` rồi `id`. `image_url` bằng `null` nếu chưa có ảnh
+hoặc đường dẫn ảnh không hợp lệ.
+
+| `availability` | Ý nghĩa |
+|---|---|
+| `available` | SKU còn được bán, giá hợp lệ và tồn đủ cho số lượng đã lưu. |
+| `out_of_stock` | SKU còn được hiển thị nhưng tồn bằng 0. |
+| `insufficient_stock` | SKU còn hàng nhưng tồn thấp hơn số lượng trong giỏ. |
+| `invalid_price` | Giá catalog hiện không hợp lệ. `unit_price` trả `null`. |
+| `unavailable` | SKU hoặc sản phẩm không còn công khai. Giữ ID và số lượng của dòng, trả `null` cho `product`, `variant`, tồn và giá. |
+
+`summary.item_count` và `summary.total_quantity` đếm toàn bộ các dòng đã lưu.
+`summary.subtotal` cộng `line_total` của các dòng `available`. Các dòng
+còn lại trả `line_total: null`. Giá và tạm tính là số nguyên VND hiện tại,
+chưa gồm phí giao hàng. Nếu tiền vượt giới hạn số nguyên JSON an toàn cho
+JavaScript, API trả `409` với mã `CART_AMOUNT_LIMIT`; nếu tổng số lượng vượt
+giới hạn này thì trả `CART_QUANTITY_LIMIT`. API đọc để hiển thị, giá và tồn
+vẫn cần được kiểm tra lại khi thực hiện checkout.
+
+```json
+{
+  "data": {
+    "items": [],
+    "summary": {
+      "item_count": 0,
+      "total_quantity": 0,
+      "subtotal": 0
+    }
+  }
+}
+```
+
+### Thêm SKU (UC14)
 
 POST nhận đúng hai field dưới đây. Cả hai phải là **JSON integer**, không nhận
 chuỗi số, boolean, số thập phân hoặc null. ID trong khoảng 1..PHP_INT_MAX;

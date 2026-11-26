@@ -44,19 +44,141 @@ class CartApiTest extends CatalogDatabaseTestCase
         return $user;
     }
 
-    public function test_both_routes_require_an_active_customer_before_validation(): void
+    public function test_cart_routes_require_an_active_customer_before_validation(): void
     {
-        foreach ([['POST', '/items'], ['GET', '/summary']] as [$method, $path]) {
+        $routes = [['POST', '/items'], ['GET', '/summary'], ['GET', '']];
+        foreach ($routes as [$method, $path]) {
             $this->json($method, $this->base.$path)->assertUnauthorized();
         }
         foreach ([['role' => 'admin'], ['is_active' => false]] as $attributes) {
             $this->app['auth']->forgetGuards();
             $this->actingAs(User::factory()->create($attributes), 'web');
-            foreach ([['POST', '/items'], ['GET', '/summary']] as [$method, $path]) {
+            foreach ($routes as [$method, $path]) {
                 $this->json($method, $this->base.$path)->assertForbidden();
             }
         }
         self::assertSame(0, Cart::count());
+    }
+
+    public function test_cart_details_return_empty_without_creating_a_cart_and_keep_owner_scope(): void
+    {
+        $owner = $this->customer();
+        $variant = $this->cartVariant();
+        $this->postJson($this->base.'/items', ['product_variant_id' => $variant->id, 'quantity' => 2])->assertCreated();
+        $other = $this->customer();
+        $empty = ['data' => ['items' => [], 'summary' => ['item_count' => 0, 'total_quantity' => 0, 'subtotal' => 0]]];
+
+        $response = $this->getJson($this->base.'?user_id='.$owner->id.'&cart_id='.$owner->cart->id)
+            ->assertOk()
+            ->assertExactJson($empty);
+        self::assertTrue($response->headers->hasCacheControlDirective('private'));
+        self::assertTrue($response->headers->hasCacheControlDirective('no-store'));
+        self::assertSame(0, $other->cart()->count());
+
+        $other->cart()->create();
+        $this->getJson($this->base)->assertOk()->assertExactJson($empty);
+    }
+
+    public function test_cart_details_return_current_prices_and_primary_image_for_each_saved_sku(): void
+    {
+        $owner = $this->customer();
+        $first = $this->cartVariant();
+        $second = $this->cartVariant(['sale_price' => 100000]);
+        $first->product->images()->create(['path' => 'images/last.png', 'sort_order' => 2]);
+        $first->product->images()->create(['path' => 'images/main.png', 'alt_text' => 'Ảnh chính', 'sort_order' => 1]);
+        $first->product->images()->create(['path' => 'images/tied.png', 'sort_order' => 1]);
+        $second->product->images()->create(['path' => 'images/second.png', 'sort_order' => 0]);
+        $firstId = $this->postJson($this->base.'/items', ['product_variant_id' => $first->id, 'quantity' => 2])
+            ->assertCreated()->json('data.item.id');
+        $this->postJson($this->base.'/items', ['product_variant_id' => $second->id, 'quantity' => 1])->assertCreated();
+        $first->update(['sale_price' => 160000]);
+        $before = $owner->cart->items()->orderBy('id')->get()->map->getAttributes()->all();
+
+        $this->getJson($this->base)->assertOk()->assertJsonCount(2, 'data.items')
+            ->assertJsonPath('data.items.0', [
+                'id' => $firstId, 'product_variant_id' => $first->id, 'quantity' => 2,
+                'product' => [
+                    'name' => $first->product->name, 'slug' => $first->product->slug,
+                    'image_url' => url('/images/main.png'), 'image_alt' => 'Ảnh chính',
+                ],
+                'variant' => ['name' => $first->name, 'sku' => $first->sku],
+                'stock_quantity' => 10, 'unit_price' => 160000, 'line_total' => 320000, 'availability' => 'available',
+            ])
+            ->assertJsonPath('data.items.1.product.image_url', url('/images/second.png'))
+            ->assertJsonPath('data.summary', ['item_count' => 2, 'total_quantity' => 3, 'subtotal' => 420000]);
+
+        self::assertSame($before, $owner->cart->items()->orderBy('id')->get()->map->getAttributes()->all());
+        self::assertSame(10, $first->fresh()->stock_quantity);
+        self::assertSame(10, $second->fresh()->stock_quantity);
+    }
+
+    public function test_cart_details_only_sum_eligible_lines_and_keep_stock_and_price_warnings(): void
+    {
+        $this->customer();
+        $changes = [
+            'out_of_stock' => ['stock_quantity' => 0],
+            'insufficient_stock' => ['stock_quantity' => 1],
+            'invalid_price' => ['sale_price' => 0],
+            'available' => [],
+        ];
+        foreach ($changes as $attributes) {
+            $variant = $this->cartVariant();
+            $this->postJson($this->base.'/items', ['product_variant_id' => $variant->id, 'quantity' => 2])->assertCreated();
+            $variant->update($attributes);
+        }
+
+        $response = $this->getJson($this->base)->assertOk()->assertJsonCount(4, 'data.items')
+            ->assertJsonPath('data.items.0.stock_quantity', 0)
+            ->assertJsonPath('data.items.1.stock_quantity', 1)
+            ->assertJsonPath('data.items.2.unit_price', null)
+            ->assertJsonPath('data.summary', ['item_count' => 4, 'total_quantity' => 8, 'subtotal' => 300000]);
+        self::assertSame(array_keys($changes), array_column($response->json('data.items'), 'availability'));
+        self::assertSame([null, null, null, 300000], array_column($response->json('data.items'), 'line_total'));
+    }
+
+    public function test_cart_details_keep_unavailable_lines_without_exposing_hidden_catalog(): void
+    {
+        $this->customer();
+        $states = ['draft', 'inactive', 'deleted', 'category', 'brand', 'variant'];
+        foreach ($states as $state) {
+            $variant = $this->cartVariant();
+            $product = $variant->product;
+            $this->postJson($this->base.'/items', ['product_variant_id' => $variant->id, 'quantity' => 2])->assertCreated();
+            match ($state) {
+                'draft', 'inactive' => $product->update(['status' => $state]),
+                'deleted' => $product->delete(),
+                'category' => $product->category()->update(['is_active' => false]),
+                'brand' => $product->brand()->update(['is_active' => false]),
+                'variant' => $variant->update(['is_active' => false]),
+            };
+        }
+
+        $response = $this->getJson($this->base)->assertOk()->assertJsonCount(6, 'data.items')
+            ->assertJsonPath('data.summary', ['item_count' => 6, 'total_quantity' => 12, 'subtotal' => 0]);
+        foreach ($response->json('data.items') as $line) {
+            self::assertSame('unavailable', $line['availability']);
+            self::assertSame(2, $line['quantity']);
+            foreach (['product', 'variant', 'stock_quantity', 'unit_price', 'line_total'] as $field) {
+                self::assertNull($line[$field]);
+            }
+        }
+    }
+
+    public function test_cart_details_reject_totals_above_the_json_integer_limit_without_writing(): void
+    {
+        $owner = $this->customer();
+        $attributes = ['list_price' => ProductVariant::MAX_PRICE, 'sale_price' => ProductVariant::MAX_PRICE, 'stock_quantity' => CartService::MAX_QUANTITY];
+        $first = $this->cartVariant($attributes);
+        $this->postJson($this->base.'/items', ['product_variant_id' => $first->id, 'quantity' => 9007])->assertCreated();
+        $this->getJson($this->base)->assertOk()->assertJsonPath('data.summary.subtotal', 9_006_999_999_990_993);
+        $second = $this->cartVariant($attributes);
+        $this->postJson($this->base.'/items', ['product_variant_id' => $second->id, 'quantity' => CartService::MAX_QUANTITY])->assertCreated();
+        $this->getJson($this->base)->assertConflict()->assertJsonPath('code', 'CART_AMOUNT_LIMIT');
+        $line = $owner->cart->items()->where('product_variant_id', $second->id)->firstOrFail();
+        self::assertSame(CartService::MAX_QUANTITY, $line->quantity);
+
+        $line->update(['quantity' => 1]);
+        $this->getJson($this->base)->assertConflict()->assertJsonPath('code', 'CART_AMOUNT_LIMIT');
     }
 
     public function test_new_line_and_repeated_add_have_exact_resources_and_do_not_change_price_or_stock(): void

@@ -13,8 +13,8 @@ Tài liệu dùng để chia việc theo chuỗi **vai trò → use case → tas
 | Storefront Bazaar và catalog công khai | Trang chủ, danh mục, tìm kiếm, lọc, sắp xếp, phân trang, chi tiết, SKU và thông số kỹ thuật. |
 | Tài khoản Cobalt Orbit | Đăng ký, đăng nhập, xem hồ sơ, đăng xuất và phân quyền qua Sanctum. |
 | Quản trị catalog | Danh mục, thương hiệu, sản phẩm, ảnh, SKU, thông số, công bố và ẩn sản phẩm. Quản trị catalog dùng các route và Gate Admin hiện có. |
-| Địa chỉ và giỏ hàng | Quản lý địa chỉ giao hàng (UC17). Thêm SKU và đọc số lượng tổng hợp (UC14). Màn hình UC15–UC16 đang ở bản xem trước DEV với dữ liệu mẫu. |
-| Công việc tiếp theo | API xem và sửa toàn bộ giỏ, checkout COD, theo dõi và xử lý đơn, quản trị banner và dashboard. |
+| Địa chỉ và giỏ hàng | Quản lý địa chỉ giao hàng (UC17). Thêm SKU và đọc số lượng tổng hợp (UC14). Có API đọc toàn bộ giỏ (UC15). Giao diện giỏ đang ở bản xem trước DEV với dữ liệu mẫu. |
+| Công việc tiếp theo | Tích hợp trang xem giỏ với API, đổi số lượng hoặc xóa dòng (UC16), checkout COD, theo dõi và xử lý đơn, quản trị banner và dashboard. |
 
 ### Tham khảo và chuyển thành phạm vi ShopHub
 
@@ -112,7 +112,7 @@ Giới hạn giá và điều kiện hợp lệ của cặp giá nằm ở `Prod
 4. Tạo đơn `pending`, snapshot dòng đơn, payment COD `pending` và lịch sử. Trừ tồn một lần và xóa các dòng giỏ đã đặt trong cùng transaction. Lỗi ở bất kỳ bước nào phải rollback toàn bộ.
 5. `checkout_token` duy nhất ở database. Gửi lại cùng người dùng và cùng yêu cầu trả lại đơn cũ. Token đã dùng cho yêu cầu khác bị từ chối. Khách nhận mã đơn và link đến chi tiết đơn của mình.
 
-Trước khi tích hợp UC15–UC16, chốt contract tạm tính cho dòng hết hàng hoặc vượt tồn và cách phản hồi khi một tab cập nhật dòng đã đổi ở tab khác. Khi thiết kế thao tác ghi, đối chiếu thứ tự khóa đang dùng trong [contract giỏ UC14](../api/customer-cart.md) với luồng quản trị catalog.
+API đọc giỏ của UC15 giữ các dòng đã lưu và chỉ tính tạm tính từ dòng đủ điều kiện. Khi thiết kế UC16, chốt phản hồi cho trường hợp một tab cập nhật dòng đã đổi ở tab khác. Đối chiếu thứ tự khóa đang dùng trong [contract giỏ hàng](../api/customer-cart.md) với luồng quản trị catalog.
 
 ### 5.3. Trạng thái đơn và thu COD
 

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import AdminLayout from './layouts/AdminLayout';
 import { AdminCatalogForm, AdminCatalogList } from './pages/admin/AdminCatalogPage';
@@ -13,6 +14,8 @@ import { AccountProvider } from './contexts/AccountContext';
 import { AccountAuthPage, AccountProfilePage } from './pages/public/AccountPage';
 import './styles/bazaar.scoped.css';
 import './App.css';
+
+const CartPreviewPage = import.meta.env.DEV ? lazy(() => import('./pages/customer/CartPreviewPage')) : null;
 
 export default function App() {
   return (
@@ -40,6 +43,7 @@ export default function App() {
           <Route path="register" element={<AccountAuthPage key="register" register />} />
           <Route path="account" element={<AccountProfilePage />} />
           <Route path="connection" element={<ConnectionPage />} />
+          {CartPreviewPage && <Route path="cart-preview" element={<Suspense fallback={<div className="wrap" role="status">Đang mở bản xem trước…</div>}><CartPreviewPage /></Suspense>} />}
           <Route path="*" element={<NotFoundPage />} />
         </Route>
       </Routes>

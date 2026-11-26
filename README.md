@@ -428,6 +428,20 @@ CHECK `cart_items_quantity_positive` còn đầy đủ. Kết quả chỉ đọc
 `storage/framework/testing/uc14-t04-local-results.json`; không migrate/seed/reset
 database local trong lượt sửa lỗi.
 
+## Xem trước giao diện giỏ hàng (UC15–UC16)
+
+Trong `frontend/`, chạy bằng PowerShell:
+
+```powershell
+$env:VITE_CATALOG_SOURCE = 'demo'
+npm run dev -- --host localhost --port 5173 --strictPort
+```
+
+Mở `http://localhost:5173/cart-preview`. Dùng ô **Xem trước · Dữ liệu mẫu** để
+kiểm tra giỏ có sản phẩm, giỏ trống, đang tải, lỗi tải, SKU hết hàng và vượt tồn.
+Thao tác số lượng và xóa dùng dữ liệu tạm trong trang. Route xem trước chỉ có ở
+chế độ phát triển. Mở terminal mới khi quay lại chạy frontend với API.
+
 ## Địa chỉ local
 
 - Backend: http://localhost:8000

@@ -15,7 +15,9 @@ use Tests\Support\CatalogDatabaseTestCase;
 class PublicCatalogApiTest extends CatalogDatabaseTestCase
 {
     private Category $category;
+
     private Brand $brand;
+
     private int $sequence = 0;
 
     protected function setUp(): void
@@ -86,6 +88,19 @@ class PublicCatalogApiTest extends CatalogDatabaseTestCase
         $this->getJson('/api/public/products?category=missing')->assertJsonPath('meta.total', 0);
     }
 
+    public function test_legacy_category_cycle_does_not_repeat_products(): void
+    {
+        $child = Category::create(['slug' => 'legacy-child', 'name' => 'Legacy child', 'is_active' => true, 'parent_id' => $this->category->id]);
+        $this->category->update(['parent_id' => $child->id]);
+        $this->product();
+        $this->product(['category_id' => $child->id]);
+
+        $categories = collect($this->getJson('/api/public/categories')->assertOk()->json('data'))->keyBy('slug');
+        self::assertSame(2, $categories['laptop']['product_count']);
+        self::assertSame(2, $categories['legacy-child']['product_count']);
+        $this->getJson('/api/public/products?category=laptop')->assertOk()->assertJsonPath('meta.total', 2);
+    }
+
     public function test_price_filter_and_sort_use_cheapest_active_even_when_sold_out(): void
     {
         $multi = $this->product([], ['sale_price' => 100, 'list_price' => 100, 'stock_quantity' => 0]);
@@ -105,7 +120,9 @@ class PublicCatalogApiTest extends CatalogDatabaseTestCase
     public function test_filters_search_literal_wildcards_and_stable_pagination(): void
     {
         $this->product(['name' => 'Special 100% laptop'], ['stock_quantity' => 0, 'sale_price' => 120, 'list_price' => 120]);
-        for ($number = 0; $number < 9; $number++) $this->product();
+        for ($number = 0; $number < 9; $number++) {
+            $this->product();
+        }
         $this->getJson('/api/public/products?per_page=4&page=2')->assertOk()->assertJsonCount(4, 'data')->assertJsonPath('meta.total', 10)->assertJsonPath('meta.current_page', 2)->assertJsonPath('meta.last_page', 3);
         $first = $this->getJson('/api/public/products?per_page=4')->json('data');
         $second = $this->getJson('/api/public/products?per_page=4&page=2')->json('data');
@@ -133,7 +150,9 @@ class PublicCatalogApiTest extends CatalogDatabaseTestCase
         self::assertSame('http', parse_url($data['images'][1]['url'], PHP_URL_SCHEME));
         self::assertNull($data['images'][2]['url']);
         self::assertSame([], $data['specifications']);
-        foreach (['deleted_at', 'status', 'is_featured'] as $field) self::assertArrayNotHasKey($field, $data);
+        foreach (['deleted_at', 'status', 'is_featured'] as $field) {
+            self::assertArrayNotHasKey($field, $data);
+        }
         self::assertArrayNotHasKey('is_active', $data['variants'][0]);
     }
 
@@ -186,7 +205,9 @@ class PublicCatalogApiTest extends CatalogDatabaseTestCase
 
     public function test_mariadb_search_handles_vietnamese_accents(): void
     {
-        if (DB::connection()->getDriverName() !== 'mysql') $this->markTestSkipped('Collation check requires MySQL/MariaDB.');
+        if (DB::connection()->getDriverName() !== 'mysql') {
+            $this->markTestSkipped('Collation check requires MySQL/MariaDB.');
+        }
         $this->product(['name' => 'Chuột không dây']);
         $this->getJson('/api/public/products?q=chuot')->assertOk()->assertJsonPath('meta.total', 1);
     }

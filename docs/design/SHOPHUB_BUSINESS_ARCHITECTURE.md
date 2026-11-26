@@ -6,12 +6,15 @@ Tài liệu dùng để chia việc theo chuỗi **vai trò → use case → tas
 
 ## 1. Hiện trạng và quyết định phạm vi
 
-| Hạng mục | Hiện trạng xác nhận từ repo |
+Đối chiếu ngày 26/11/2026 trên nhánh `feature/uc15-uc16-shopping-cart`.
+
+| Hạng mục | Có trong mã nguồn trên nhánh hiện tại |
 |---|---|
-| Storefront Bazaar và catalog công khai | Có trên nhánh `dev` tại `71687af`. Gồm trang chủ, danh mục, tìm kiếm, lọc, sắp xếp, phân trang, chi tiết, SKU/biến thể và thông số kỹ thuật. |
-| Tài khoản Cobalt Orbit | Có trên nhánh `feature/cobalt-orbit-auth` tại `33730ff`. Gồm đăng ký, đăng nhập, xem thông tin, đăng xuất và Gate `access-admin`. Cần tích hợp vào `dev` trước khi phát triển API quản trị dựa trên Gate. |
-| Quản trị, địa chỉ, giỏ, đơn và dashboard | Backlog. Menu hiện có là điểm vào để kết nối khi nghiệp vụ tương ứng hoàn thành. |
-| Kiểm thử | Tình trạng trên phản ánh mã nguồn trên GitHub. Kết quả chạy trên máy Windows của dự án cần được xác nhận ở T00. |
+| Storefront Bazaar và catalog công khai | Trang chủ, danh mục, tìm kiếm, lọc, sắp xếp, phân trang, chi tiết, SKU và thông số kỹ thuật. |
+| Tài khoản Cobalt Orbit | Đăng ký, đăng nhập, xem hồ sơ, đăng xuất và phân quyền qua Sanctum. |
+| Quản trị catalog | Danh mục, thương hiệu, sản phẩm, ảnh, SKU, thông số, công bố và ẩn sản phẩm. Quản trị catalog dùng các route và Gate Admin hiện có. |
+| Địa chỉ và giỏ hàng | Quản lý địa chỉ giao hàng (UC17). Thêm SKU và đọc số lượng tổng hợp (UC14). Màn hình UC15–UC16 đang ở bản xem trước DEV với dữ liệu mẫu. |
+| Công việc tiếp theo | API xem và sửa toàn bộ giỏ, checkout COD, theo dõi và xử lý đơn, quản trị banner và dashboard. |
 
 ### Tham khảo và chuyển thành phạm vi ShopHub
 
@@ -88,7 +91,9 @@ V1 lưu hai giá trị role `customer` và `admin`. Ba nhóm công việc Admin 
 | Đặt hàng và vận hành | `orders`, `order_items`, `order_status_histories`, `payments`. Điều phối địa chỉ, giỏ và tồn kho trong cùng transaction. | Checkout, lịch sử và tra cứu. Admin có màn hình xử lý đơn và các hành động chuyển trạng thái riêng. |
 | Nội dung và báo cáo | `banners` và trang chính sách. Báo cáo chỉ đọc đơn, dòng đơn và thanh toán. | Banner trang chủ, footer và dashboard Admin. |
 
-Laravel giữ quy tắc quyền, giá, tồn và chuyển trạng thái. Controller nhận yêu cầu, Form Request kiểm tra dữ liệu, Gate/Policy kiểm tra quyền, service xử lý các thao tác có transaction, Resource trả dữ liệu cho UI. React quản lý giao diện, hiển thị lỗi và gọi API bằng client hiện có. Các đường dẫn API mới trong tài liệu là phạm vi thiết kế, chốt contract khi triển khai từng task.
+Laravel giữ quy tắc quyền, giá, tồn và chuyển trạng thái. Controller nhận yêu cầu, Form Request kiểm tra dữ liệu, Gate/Policy kiểm tra quyền, service xử lý các thao tác có transaction, Resource trả dữ liệu cho UI. React quản lý giao diện, hiển thị lỗi và gọi API bằng client hiện có. Chốt contract của API mới trong Mini Plan trước khi triển khai.
+
+Giới hạn giá và điều kiện hợp lệ của cặp giá nằm ở `ProductVariant`. Quản trị SKU, công bố và thêm giỏ dùng cùng quy tắc. Các bước giữ khóa và quyết định trả lỗi thuộc từng service. Ở frontend, các luồng thêm giỏ, địa chỉ và công bố dùng chung bước chuẩn bị CSRF và phân loại kết quả ghi. Domain service giữ endpoint và payload. Mỗi giao diện giữ cách đọc lại dữ liệu và đối chiếu của riêng nghiệp vụ đó.
 
 ## 5. Quy tắc nghiệp vụ và luồng chính
 
@@ -106,6 +111,8 @@ Laravel giữ quy tắc quyền, giá, tồn và chuyển trạng thái. Control
 3. Khi đặt hàng, Laravel khóa giỏ rồi khóa các SKU theo ID tăng dần. Kiểm tra lại điều kiện bán, số lượng, tồn và giá. Nếu giá thay đổi, trả dữ liệu mới để khách xác nhận lại. Luồng chỉnh tồn từ Admin phải tương thích với khóa hoặc cập nhật nguyên tử.
 4. Tạo đơn `pending`, snapshot dòng đơn, payment COD `pending` và lịch sử. Trừ tồn một lần và xóa các dòng giỏ đã đặt trong cùng transaction. Lỗi ở bất kỳ bước nào phải rollback toàn bộ.
 5. `checkout_token` duy nhất ở database. Gửi lại cùng người dùng và cùng yêu cầu trả lại đơn cũ. Token đã dùng cho yêu cầu khác bị từ chối. Khách nhận mã đơn và link đến chi tiết đơn của mình.
+
+Trước khi tích hợp UC15–UC16, chốt contract tạm tính cho dòng hết hàng hoặc vượt tồn và cách phản hồi khi một tab cập nhật dòng đã đổi ở tab khác. Khi thiết kế thao tác ghi, đối chiếu thứ tự khóa đang dùng trong [contract giỏ UC14](../api/customer-cart.md) với luồng quản trị catalog.
 
 ### 5.3. Trạng thái đơn và thu COD
 

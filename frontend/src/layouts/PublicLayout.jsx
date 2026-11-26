@@ -94,8 +94,8 @@ export default function PublicLayout() {
     pending.filter((request) => request.error).forEach((request) => request.retry());
   }
   useEffect(() => {
-    const accountTitles = { '/login': 'Đăng nhập', '/register': 'Đăng ký', '/account': 'Tài khoản' };
-    const title = accountTitles[location.pathname] || (location.pathname.startsWith('/products') ? 'Sản phẩm' : null);
+    const pageTitles = { '/login': 'Đăng nhập', '/register': 'Đăng ký', '/account': 'Tài khoản', '/cart-preview': 'Giỏ hàng · Bản xem trước' };
+    const title = pageTitles[location.pathname] || (location.pathname.startsWith('/products') ? 'Sản phẩm' : null);
     document.title = title ? `${title} | ShopHub` : 'ShopHub | Công nghệ & Cuộc sống';
     main.current?.focus({ preventScroll: true });
     window.scrollTo({ top: 0, behavior: 'instant' });

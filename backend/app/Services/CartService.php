@@ -49,7 +49,7 @@ class CartService
         abort_unless($category->is_active && $brand?->is_active && $product->status === Product::STATUS_ACTIVE
             && $variant?->is_active && $variant->product_id === $product->id, 404, 'Không tìm thấy SKU đang được bán.');
 
-        if ($variant->sale_price < 1 || $variant->list_price < $variant->sale_price || $variant->list_price > AdminProductService::MAX_PRICE) {
+        if (! $variant->hasValidPrices()) {
             throw new CartConflictException('SKU hiện chưa có giá bán hợp lệ. Vui lòng chọn sản phẩm khác.', 'INVALID_VARIANT_PRICE');
         }
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import Icon from '../Icon';
-import { trapDialogFocus } from './dialogFocus';
+import { trapDialogFocus } from '../../utils/dialogFocus';
 
 export default function ConfirmHideDialog({ record, kind, busy, error, onCancel, onConfirm }) {
   const dialog = useRef(null);

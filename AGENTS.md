@@ -62,7 +62,7 @@ VNAShop là nguồn tham khảo ngành hàng và cách tổ chức nội dung. K
 Đọc theo mức liên quan:
 1. AGENTS.md áp dụng cho thư mục đang sửa và yêu cầu hiện tại của người dùng.
 2. README.md, ARCHITECTURE.md nếu tồn tại.
-3. docs/shophub-database-design.md.
+3. Kiến trúc nghiệp vụ và ERD trong `docs/design/`, theo phạm vi task.
 4. Báo cáo triển khai liên quan và tài liệu API nếu có.
 5. Migration, model, routes, cấu hình, service và frontend liên quan trong mã nguồn.
 6. git status, branch và diff hiện có để bảo vệ công việc đang làm.
@@ -87,6 +87,18 @@ Nếu hiện trạng khác thiết kế, xác định đây là phần chưa là
 6. Báo cáo kết quả và việc còn lại.
 
 Sau kế hoạch ngắn, tiếp tục thực hiện trong phạm vi đã giao; không mặc định dừng chờ duyệt lại. Nếu người dùng chỉ yêu cầu lập kế hoạch hoặc review thì giữ đúng yêu cầu đó.
+
+### Skill theo loại công việc
+
+Đọc skill phù hợp trong `.agents/skills/` khi bắt đầu công việc. Dùng skill lập kế hoạch trước khi sửa nghiệp vụ hoặc khi tiếp tục một task có nhiều bước. Với thay đổi nhỏ, giữ kế hoạch và kiểm tra tương xứng với phạm vi.
+
+| Công việc | Skill |
+|---|---|
+| Phân tích use case, kiến trúc, contract và chia Mini Plan | [shophub-task-planning](.agents/skills/shophub-task-planning/SKILL.md) |
+| Laravel API, phân quyền, service và Resource | [shophub-laravel](.agents/skills/shophub-laravel/SKILL.md) |
+| React, thiết kế UI, bản xem trước và tích hợp API | [shophub-react](.agents/skills/shophub-react/SKILL.md) |
+| Schema, migration, seeder và kiểm tra cạnh tranh | [shophub-database](.agents/skills/shophub-database/SKILL.md) |
+| Review, kiểm thử và báo cáo nghiệm thu | [shophub-verification](.agents/skills/shophub-verification/SKILL.md) |
 
 Có thể chia việc thành các bước nhỏ nhưng không tự dừng ở bộ khung khi task đã yêu cầu chức năng hoàn chỉnh. Không tự chuyển sang module tiếp theo sau khi task đã xong.
 

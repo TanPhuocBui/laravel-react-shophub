@@ -26,14 +26,15 @@ class PublicCatalogService
         return Category::where('is_active', true)->orderBy('sort_order')->orderBy('id')->get();
     }
 
-    private function categoryIds(Category $category, Collection $categories): array
+    private function categoryIds(Category $category, Collection $childrenByParent): array
     {
         // Traverse only active edges. The visited set also bounds malformed cycles.
         $ids = [(int) $category->id];
-        $children = $categories->groupBy('parent_id');
+        $visited = [$category->id => true];
         for ($index = 0; $index < count($ids); $index++) {
-            foreach ($children->get($ids[$index], []) as $child) {
-                if (! in_array((int) $child->id, $ids, true)) {
+            foreach ($childrenByParent->get($ids[$index], []) as $child) {
+                if (! isset($visited[$child->id])) {
+                    $visited[$child->id] = true;
                     $ids[] = (int) $child->id;
                 }
             }
@@ -45,12 +46,13 @@ class PublicCatalogService
     public function categories(): Collection
     {
         $categories = $this->activeCategories();
+        $childrenByParent = $categories->groupBy('parent_id');
         $counts = $this->publicProducts()->selectRaw('category_id, COUNT(*) AS total')
             ->groupBy('category_id')->pluck('total', 'category_id');
 
-        return $categories->each(function (Category $category) use ($categories, $counts): void {
+        return $categories->each(function (Category $category) use ($childrenByParent, $counts): void {
             $category->setAttribute('product_count', array_sum(array_map(
-                fn ($id) => (int) $counts->get($id, 0), $this->categoryIds($category, $categories),
+                fn ($id) => (int) $counts->get($id, 0), $this->categoryIds($category, $childrenByParent),
             )));
         });
     }
@@ -80,7 +82,7 @@ class PublicCatalogService
         if (isset($filters['category']) && $filters['category'] !== '') {
             $categories = $this->activeCategories();
             $category = $categories->firstWhere('slug', $filters['category']);
-            $query->whereIn('category_id', $category ? $this->categoryIds($category, $categories) : []);
+            $query->whereIn('category_id', $category ? $this->categoryIds($category, $categories->groupBy('parent_id')) : []);
         }
         if (isset($filters['brand']) && $filters['brand'] !== '') {
             $query->whereHas('brand', fn (Builder $brand) => $brand->where('slug', $filters['brand']));

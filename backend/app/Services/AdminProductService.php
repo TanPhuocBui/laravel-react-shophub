@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Category;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -16,8 +17,6 @@ use Throwable;
 
 class AdminProductService
 {
-    public const MAX_PRICE = 999999999999;
-
     public static function normalize(array $data): array
     {
         // Multipart file/input bags may merge numeric rows in a different key order.
@@ -49,8 +48,8 @@ class AdminProductService
             'variants.*.name' => ['required', 'string', 'max:150'],
             'variants.*.options' => ['nullable', 'array', 'max:10'],
             'variants.*.options.*' => ['nullable', 'string', 'max:150'],
-            'variants.*.list_price' => ['required', 'integer', 'min:1', 'max:'.self::MAX_PRICE],
-            'variants.*.sale_price' => ['required', 'integer', 'min:1', 'max:'.self::MAX_PRICE, 'lte:variants.*.list_price'],
+            'variants.*.list_price' => ['required', 'integer', 'min:1', 'max:'.ProductVariant::MAX_PRICE],
+            'variants.*.sale_price' => ['required', 'integer', 'min:1', 'max:'.ProductVariant::MAX_PRICE, 'lte:variants.*.list_price'],
             'variants.*.stock_quantity' => ['required', 'integer', 'min:0', 'max:4294967295'],
             'variants.*.is_active' => ['required', 'boolean'],
             'images' => ['required', 'array', 'list', 'min:1', 'max:10'],

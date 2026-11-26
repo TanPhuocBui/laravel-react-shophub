@@ -1,24 +1,15 @@
 import api from '../api/axios';
+import writeWithCsrf from '../api/writeWithCsrf';
 
 export async function addCartItem(fields, { signal, beforeSend }) {
-  // A failed CSRF read is distinct from a POST whose delivery outcome is unknown.
-  try { await api.get('/sanctum/csrf-cookie', { signal }); }
-  catch (error) { error.beforeWriteFailure = true; throw error; }
-  if (signal.aborted) throw new Error('Thao tác đã dừng trước khi gửi.');
-  beforeSend();
-  try {
+  return writeWithCsrf(async () => {
     const response = await api.post('/api/customer/cart/items', fields, { signal });
     const result = response.data?.data;
     if (!result?.item || result.item.product_variant_id !== fields.product_variant_id || !Number.isSafeInteger(result.item.quantity)) {
-      const failure = new Error('Chưa đọc được kết quả đã lưu.');
-      failure.writeOutcomeUnknown = true;
-      throw failure;
+      throw new Error('Chưa đọc được kết quả đã lưu.');
     }
     return result;
-  } catch (error) {
-    error.writeOutcomeUnknown = error.writeOutcomeUnknown || !error.response || error.response.status >= 500;
-    throw error;
-  }
+  }, { signal, beforeSend });
 }
 
 export async function getCartSummary(variantId, signal) {

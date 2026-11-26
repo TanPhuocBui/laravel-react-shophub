@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import AccountField from '../../components/account/AccountField';
-import { trapDialogFocus } from '../../components/admin/dialogFocus';
+import { trapDialogFocus } from '../../utils/dialogFocus';
 import { addressError, listAddresses, writeAddress } from '../../services/customerAddressService';
 import '../../styles/customer-addresses.css';
 
@@ -18,6 +18,8 @@ export default function CustomerAddressBook() {
   const [needsCheck, setNeedsCheck] = useState(null);
   const writing = useRef(false);
   const reader = useRef(null);
+  const mounted = useRef(false);
+  const errorFocus = useRef(null);
   const load = useCallback(async (page, signal) => {
     try {
       let result = await listAddresses(page, signal);
@@ -29,12 +31,23 @@ export default function CustomerAddressBook() {
     finally { if (!signal.aborted) setLoading(false); }
   }, []);
   useEffect(() => {
-    const controller = new AbortController(); reader.current = controller;
-    listAddresses(1, controller.signal).then((result) => { if (!controller.signal.aborted) { setListing(result); setLoadError(null); } })
-      .catch((error) => { if (!controller.signal.aborted) setLoadError(error); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
-    return () => reader.current?.abort();
-  }, []);
+    mounted.current = true;
+    const controller = new AbortController();
+    reader.current = controller;
+    queueMicrotask(() => {
+      if (!controller.signal.aborted) void load(1, controller.signal);
+    });
+    return () => {
+      mounted.current = false;
+      reader.current?.abort();
+    };
+  }, [load]);
+  useEffect(() => {
+    if (busy || errorFocus.current === null) return;
+    const field = document.getElementById(errorFocus.current);
+    errorFocus.current = null;
+    (field || document.getElementById('address-feedback'))?.focus();
+  }, [busy, message]);
 
   function refresh(page = 1) {
     reader.current?.abort(); const controller = new AbortController(); reader.current = controller;
@@ -48,31 +61,46 @@ export default function CustomerAddressBook() {
     const page = action === 'update' ? listing?.meta.current_page || 1 : 1;
     try {
       await writeAddress(action, record, fields);
+      if (!mounted.current) return;
       setDeleting(null);
-      if (await refresh(page)) {
+      const refreshed = await refresh(page);
+      if (!mounted.current) return;
+      if (refreshed) {
         setEditor(null);
-        setNotice(action === 'delete' ? 'Đã xóa địa chỉ và cập nhật địa chỉ mặc định.' : action === 'default' ? 'Đã đặt địa chỉ mặc định.' : 'Đã lưu địa chỉ giao hàng.');
+        setNotice(action === 'delete' ? 'Đã xóa địa chỉ.' : action === 'default' ? 'Đã đặt địa chỉ mặc định.' : 'Đã lưu địa chỉ giao hàng.');
       } else {
         setNeedsCheck({ page });
         setMessage('Thao tác đã thành công, nhưng chưa tải lại được danh sách. Hãy kiểm tra danh sách trước khi thao tác tiếp.');
       }
     } catch (error) {
+      if (!mounted.current) return;
       if (error.writeOutcomeUnknown) {
         setDeleting(null); setNeedsCheck({ page });
         setMessage('Chưa rõ máy chủ đã lưu hay chưa. Chưa gửi lại thao tác ghi; hãy kiểm tra danh sách đã lưu trước.');
       } else {
         const fields = Object.fromEntries(Object.entries(error.response?.data?.errors || {}).map(([key, values]) => [key, values[0]]));
+        errorFocus.current = Object.keys(fields)[0] ?? 'address-feedback';
         setErrors(fields); setMessage(addressError(error));
-        requestAnimationFrame(() => (document.getElementById(Object.keys(fields)[0]) || document.getElementById('address-feedback'))?.focus());
       }
-    } finally { writing.current = false; setBusy(false); }
+    } finally {
+      writing.current = false;
+      if (mounted.current) setBusy(false);
+    }
   }
   async function checkResult() {
     if (writing.current) return;
     writing.current = true; setBusy(true);
     try {
-      if (await refresh(needsCheck.page)) { setNeedsCheck(null); setMessage(''); setNotice('Đã tải danh sách đã lưu. Hãy đối chiếu với dữ liệu đang nhập trước khi quyết định gửi lại.'); }
-    } finally { writing.current = false; setBusy(false); }
+      const refreshed = await refresh(needsCheck.page);
+      if (refreshed && mounted.current) {
+        setNeedsCheck(null);
+        setMessage('');
+        setNotice('Đã tải danh sách đã lưu. Hãy đối chiếu với dữ liệu đang nhập trước khi quyết định gửi lại.');
+      }
+    } finally {
+      writing.current = false;
+      if (mounted.current) setBusy(false);
+    }
   }
   const disabled = busy || loading || Boolean(needsCheck) || Boolean(loadError);
   return <section className="address-book" aria-labelledby="address-book-title">

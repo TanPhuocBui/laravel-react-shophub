@@ -3,8 +3,8 @@
 namespace Tests\Feature;
 
 use App\Models\Cart;
+use App\Models\ProductVariant;
 use App\Models\User;
-use App\Services\AdminProductService;
 use App\Services\CartService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -197,7 +197,7 @@ class CartApiTest extends CatalogDatabaseTestCase
         return [
             'zero' => [['sale_price' => 0]],
             'sale exceeds list' => [['sale_price' => 200001]],
-            'price exceeds catalog limit' => [['list_price' => AdminProductService::MAX_PRICE + 1]],
+            'price exceeds catalog limit' => [['list_price' => ProductVariant::MAX_PRICE + 1]],
         ];
     }
 

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { useAccount } from '../contexts/useAccount';
 import Icon from '../components/Icon';
-import { trapDialogFocus } from '../components/admin/dialogFocus';
+import { trapDialogFocus } from '../utils/dialogFocus';
 import { adminCatalogTitle, catalogReturnTo } from '../utils/adminCatalog';
 import '../styles/admin.css';
 

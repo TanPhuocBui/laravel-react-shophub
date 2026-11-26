@@ -1,20 +1,22 @@
 import api from '../api/axios';
+import writeWithCsrf from '../api/writeWithCsrf';
 
 const path = '/api/customer/addresses';
 export async function listAddresses(page = 1, signal) {
   return (await api.get(path, { params: { page }, signal })).data;
 }
-export async function writeAddress(action, record, fields) {
-  await api.get('/sanctum/csrf-cookie');
-  try {
-    if (action === 'create') return (await api.post(path, fields)).data.data;
-    if (action === 'update') return (await api.put(path + '/' + record.id, fields)).data.data;
-    if (action === 'default') return (await api.patch(path + '/' + record.id + '/default')).data.data;
-    if (action === 'delete') { await api.delete(path + '/' + record.id); return null; }
-    throw new Error('Thao tác địa chỉ không hợp lệ.');
-  } catch (error) {
-    error.writeOutcomeUnknown = !error.response || error.response.status >= 500;
-    throw error;
+export function writeAddress(action, record, fields) {
+  switch (action) {
+    case 'create':
+      return writeWithCsrf(async () => (await api.post(path, fields)).data.data);
+    case 'update':
+      return writeWithCsrf(async () => (await api.put(`${path}/${record.id}`, fields)).data.data);
+    case 'default':
+      return writeWithCsrf(async () => (await api.patch(`${path}/${record.id}/default`)).data.data);
+    case 'delete':
+      return writeWithCsrf(async () => { await api.delete(`${path}/${record.id}`); return null; });
+    default:
+      throw new Error('Thao tác địa chỉ không hợp lệ.');
   }
 }
 export function addressError(error) {

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProductVariant extends Model
 {
+    public const MAX_PRICE = 999999999999;
+
     /**
      * The attributes that are mass assignable.
      *
@@ -42,5 +44,12 @@ class ProductVariant extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function hasValidPrices(): bool
+    {
+        return $this->sale_price >= 1
+            && $this->sale_price <= $this->list_price
+            && $this->list_price <= self::MAX_PRICE;
     }
 }

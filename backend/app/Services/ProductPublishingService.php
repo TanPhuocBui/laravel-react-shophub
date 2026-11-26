@@ -30,7 +30,7 @@ class ProductPublishingService
             $issues[] = 'Cần ít nhất một SKU hoạt động.';
         }
         foreach ($variants as $variant) {
-            if (trim($variant->sku) === '' || trim($variant->name) === '' || $variant->sale_price < 1 || $variant->list_price < $variant->sale_price || $variant->list_price > AdminProductService::MAX_PRICE || $variant->stock_quantity < 0) {
+            if (trim($variant->sku) === '' || trim($variant->name) === '' || ! $variant->hasValidPrices() || $variant->stock_quantity < 0) {
                 $issues[] = 'SKU '.$variant->sku.' có giá hoặc tồn kho không hợp lệ.';
             }
         }

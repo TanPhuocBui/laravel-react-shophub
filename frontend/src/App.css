@@ -329,3 +329,7 @@
   .storefront .header-main .brand .brand-mark { display: none; }
   .storefront .header-main .brand .brand-word { font-size: 1.8rem; }
 }
+.storefront .catalog-load-status { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; padding-top: 20px; padding-bottom: 20px; }
+.storefront .catalog-load-status > div { flex: 1 1 240px; }
+.storefront .catalog-load-status h2 { margin: 0 0 6px; font-size: 1.4rem; }
+.storefront .catalog-load-status p { display: flex; align-items: center; gap: 12px; margin: 0; }

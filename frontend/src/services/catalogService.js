@@ -33,13 +33,77 @@ async function request(path, options = {}) {
     return (await api.get(path, options)).data;
   } catch (error) {
     if (options.signal?.aborted) throw error;
-    const message = error.response?.status === 422
-      ? Object.values(error.response.data.errors || {}).flat().join(' ')
-      : error.response ? 'Không thể tải dữ liệu sản phẩm. Vui lòng thử lại.' : 'Không kết nối được máy chủ. Vui lòng thử lại.';
+    if (error.code === 'ERR_CANCELED') throw error;
+    const status = error.response?.status;
+    const timeout = ['ECONNABORTED', 'ETIMEDOUT'].includes(error.code);
+    const message = timeout ? 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.'
+      : status === 422 ? Object.values(error.response.data.errors || {}).flat().join(' ') || 'Bộ lọc chưa hợp lệ.'
+      : status === 404 ? 'Không tìm thấy dữ liệu được yêu cầu.'
+      : status >= 500 ? 'Máy chủ đang gặp sự cố. Vui lòng thử lại sau.'
+      : status ? 'Không thể tải dữ liệu. Vui lòng thử lại.'
+      : 'Không kết nối được máy chủ. Vui lòng kiểm tra kết nối và thử lại.';
     const failure = new Error(message);
-    failure.status = error.response?.status;
+    failure.status = status;
+    failure.kind = timeout ? 'timeout' : status ? 'http' : 'network';
     throw failure;
   }
+}
+
+// Public metadata only: share GETs across subscribers/StrictMode and cache success
+// for 30 seconds. A subscriber abort never cancels another subscriber's request.
+const metadataCache = new Map();
+function getMetadata(path, { signal, force = false } = {}) {
+  if (signal?.aborted) return Promise.reject(new DOMException('Aborted', 'AbortError'));
+  let entry = metadataCache.get(path);
+  if (!entry?.pending && (force || !entry || entry.expires <= Date.now())) {
+    entry = { pending: true };
+    metadataCache.set(path, entry);
+    entry.promise = request(path).then((payload) => {
+      entry.pending = false;
+      entry.expires = Date.now() + 30000;
+      return payload;
+    }).catch((error) => {
+      metadataCache.delete(path);
+      throw error;
+    });
+  }
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(new DOMException('Aborted', 'AbortError'));
+    if (signal?.aborted) { abort(); return; }
+    signal?.addEventListener('abort', abort, { once: true });
+    entry.promise.then(resolve, reject).finally(() => signal?.removeEventListener('abort', abort));
+  });
+}
+
+// Only home strips are queued. Detail/search are never queued behind home strips.
+const homeQueue = [];
+let homeActive = 0;
+function drainHomeQueue() {
+  while (homeActive < 2 && homeQueue.length) {
+    const job = homeQueue.shift();
+    job.signal?.removeEventListener('abort', job.abort);
+    if (job.signal?.aborted) { job.abort(); continue; }
+    homeActive += 1;
+    getProducts(job.parameters, job.options).then(job.resolve, job.reject).finally(() => {
+      homeActive -= 1;
+      drainHomeQueue();
+    });
+  }
+}
+
+export function getHomeProducts(parameters, options = {}) {
+  return new Promise((resolve, reject) => {
+    const job = { parameters, options, signal: options.signal, resolve, reject };
+    job.abort = () => {
+      const index = homeQueue.indexOf(job);
+      if (index >= 0) homeQueue.splice(index, 1);
+      reject(new DOMException('Aborted', 'AbortError'));
+    };
+    if (job.signal?.aborted) { job.abort(); return; }
+    job.signal?.addEventListener('abort', job.abort, { once: true });
+    homeQueue.push(job);
+    drainHomeQueue();
+  });
 }
 
 async function demoCatalog() {
@@ -52,10 +116,18 @@ export async function getCatalog(options = {}) {
     const { categories, brands, products } = await demoCatalog();
     return { categories: categories.map((category) => categoryView({ ...category, parent_id: null, product_count: products.filter((product) => product.category_slug === category.slug).length })), brands };
   }
-  const [categories, brands] = await Promise.all([
-    request('/api/public/categories', options), request('/api/public/brands', options),
+  const [categories, brands] = await Promise.allSettled([
+    getMetadata('/api/public/categories', options), getMetadata('/api/public/brands', options),
   ]);
-  return { categories: categories.data.map(categoryView), brands: brands.data };
+  if (options.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+  return {
+    categories: categories.status === 'fulfilled' ? categories.value.data.map(categoryView) : [],
+    brands: brands.status === 'fulfilled' ? brands.value.data : [],
+    errors: {
+      categories: categories.status === 'rejected' ? categories.reason.message : '',
+      brands: brands.status === 'rejected' ? brands.reason.message : '',
+    },
+  };
 }
 
 export async function getProducts(parameters = {}, options = {}) {
@@ -71,16 +143,6 @@ export async function getProducts(parameters = {}, options = {}) {
   }
   const payload = await request('/api/public/products', { ...options, params });
   return { products: payload.data.map(productView), meta: payload.meta, links: payload.links };
-}
-
-export async function getHomeCatalog(categories, options = {}) {
-  const roots = categories.filter((category) => category.parent_id == null).slice(0, 3);
-  const [promotions, newest, ...sections] = await Promise.all([
-    getProducts({ promotion: 1, sort: 'newest', per_page: 4 }, options),
-    getProducts({ sort: 'newest', per_page: 5 }, options),
-    ...roots.map((category) => getProducts({ category: category.slug, sort: 'newest', per_page: 5 }, options)),
-  ]);
-  return { promotions: promotions.products, newest: newest.products, total: newest.meta.total, sections: roots.map((category, index) => ({ category, products: sections[index].products })) };
 }
 
 export async function getProductDetail(slug, options = {}) {

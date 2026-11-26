@@ -13,6 +13,8 @@ Dự án website thương mại điện tử sử dụng Laravel REST API và Re
 - backend/: Laravel REST API
 - frontend/: React application
 
+Xem [ERD tổng thể và từ điển dữ liệu ShopHub](docs/design/shophub-erd.md) để tra cứu cấu trúc bảng, quan hệ và luồng tạo đơn COD.
+
 ## Trạng thái hiện tại
 
 - Đã khởi tạo backend và frontend.
@@ -31,7 +33,25 @@ Trong thư mục backend:
 3. Tạo database shophub.
 4. Chạy php artisan key:generate.
 5. Chạy php artisan migrate.
-6. Chạy php artisan serve --host=localhost --port=8000.
+6. Trên Windows/XAMPP, chạy `./scripts/serve-local.ps1 -Port 8000` trong PowerShell.
+
+Với môi trường Windows/XAMPP, bật **MySQL** trong XAMPP trước khi chạy backend.
+Script ở bước 6 kiểm tra kết nối DB chỉ đọc trước khi
+mở server, bật OPcache CLI và dừng sớm với thông báo nếu DB chưa sẵn sàng:
+
+```powershell
+./scripts/serve-local.ps1 -Port 8000
+# Hoặc kiểm tra DB riêng:
+php scripts/check-local-database.php
+```
+
+Khi gặp “Không kết nối được máy chủ”, kiểm tra MySQL/XAMPP, backend cổng 8000
+và frontend cổng 5173 trước khi thử lại. Ngày 19/11/2026 đã xác minh lỗi local
+do MariaDB cổng 3306 chưa chạy; sau khi bật lại, API sản phẩm trả HTTP 200 với
+13 sản phẩm công khai. Không cần migrate lại hoặc seed để xử lý lỗi kết nối này.
+`/api/health` kiểm tra ứng dụng HTTP; kết quả của endpoint này không thay thế
+kiểm tra truy vấn database. Log backend có thể cho biết lỗi DB, trong khi trình
+duyệt chỉ nhận lỗi mạng/timeout nếu request chưa có phản hồi HTTP.
 
 ## Dữ liệu demo sản phẩm
 
@@ -97,11 +117,51 @@ Frontend dùng giao diện chuyển từ **Bazaar** (uiCookies), thay lựa ch�
 - `/products/:slug`: bộ hình minh họa, SKU, giá VND, biến thể, tồn hàng và thông số.
 - `/connection`: giữ trang kiểm tra `/api/health` qua Axios hiện có.
 
-**Catalog mặc định dùng API Laravel.** Chỉ hiển thị sản phẩm active, chưa xóa mềm, có danh mục/thương hiệu active và ít nhất một biến thể active. Các sản phẩm draft từ `ProductCatalogSeeder` tiếp tục bị ẩn. Chưa có giỏ hàng hoặc đặt hàng trong giao diện này.
+**Catalog mặc định dùng API Laravel.** Chỉ hiển thị sản phẩm active, chưa xóa mềm, có danh mục/thương hiệu active và ít nhất một biến thể active. Các sản phẩm draft từ `ProductCatalogSeeder` tiếp tục bị ẩn. Customer có thể thêm SKU vào giỏ từ trang chi tiết; checkout và đặt hàng đang được phát triển.
 
 Đặt `VITE_CATALOG_SOURCE=api` và `VITE_BACKEND_URL=http://localhost:8000` trong `frontend/.env`, rồi khởi động lại Vite/build lại. `.env.example` đã cấu hình API; nếu `.env` cũ của bạn còn `demo`, đổi sang `api` để xem database. Chỉ chọn rõ `VITE_CATALOG_SOURCE=demo` mới chạy fixture tại `frontend/src/data/demoCatalog.js`. Khi API lỗi, giao diện báo lỗi và cho thử lại, không tự chuyển demo.
 
 API đọc: `/api/public/categories`, `/api/public/brands`, `/api/public/products`, `/api/public/products/{slug}`. Xem [contract API](docs/api/public-catalog.md) và [kết quả triển khai/kiểm thử](docs/report/shophub-public-catalog-api-report.md).
+
+Luồng tải catalog tách sản phẩm khỏi danh mục/thương hiệu: lỗi bộ lọc không chặn
+danh sách hoặc chi tiết. Toàn trang có **một thông báo tải/lỗi và một nút Tải lại**
+để chạy lại các GET catalog bị lỗi cùng lúc; dữ liệu đã tải thành công tiếp tục
+hiển thị. Bộ lọc đang chọn trên URL được giữ khi metadata tạm lỗi. Tối đa hai
+GET dải sản phẩm chạy đồng thời. GET danh mục/thương hiệu đang
+chạy được dùng chung giữa các nơi gọi; chỉ kết quả thành công được cache trong
+bộ nhớ 30 giây, không lưu bền. Sản phẩm, giá, tồn và dữ liệu tài khoản/giỏ không
+được cache bởi cơ chế này. Không tự gửi lại POST thêm giỏ khi lỗi mạng/timeout.
+
+Kiểm tra service trong `frontend/` (HTTP giả lập để kiểm tra cạnh tranh/cache):
+
+```powershell
+node --experimental-vm-modules --test scripts/catalog-service.test.mjs
+```
+
+Kiểm tra giao diện bằng Chrome/Laravel/MariaDB thật, sau khi tạo **database test mới**
+và migrate theo hướng dẫn kiểm thử giỏ bên dưới:
+
+```powershell
+node scripts/t02-admin-catalog-review.mjs --catalog-resilience
+```
+
+Kịch bản chủ động chặn request, trả HTTP 503 hoặc giữ request đến timeout 10 giây;
+mọi phản hồi dữ liệu thành công lấy từ API thật. Kết quả và ảnh 1440/390px nằm
+trong `backend/storage/framework/testing/catalog-resilience-*` (được Git bỏ qua).
+
+Lượt sửa lỗi 19/11/2026, sau khi gộp nút tải lại: đạt 4 test service,
+15 kịch bản lỗi/phục hồi Chrome (58 response API) và hồi quy 21 kịch bản UC14
+(229 response API). Không có
+Runtime exception. Chrome mở Vite local với dữ liệu `shophub` thật cũng xác nhận
+trang chủ hiển thị đủ ba nhóm nổi bật; StrictMode chỉ gọi một GET danh mục và
+một GET thương hiệu. Build đạt, lint còn warning cũ ở `ConnectionPage.jsx:9`.
+
+Bổ sung theo phản hồi giao diện: đã gộp các nút thử lại và sửa working directory
+của launcher sang `backend/public` theo router Laravel. Backend mặc định
+`php artisan serve` trên XAMPP hiện tại chưa bật OPcache; đo tám GET đồng thời
+mất gần 10 giây. Chạy bằng `serve-local.ps1` sau khi sửa giảm cùng lượt đo xuống
+khoảng 1,4 giây (bao gồm khởi động cache), tránh hàng đợi vượt timeout 10 giây.
+Không cần sửa `php.ini`, tăng timeout frontend hoặc thay đổi dữ liệu sản phẩm.
 
 Để có dữ liệu active trên database local đã migrate, có thể chạy riêng trong `backend/`:
 
@@ -209,6 +269,164 @@ php artisan migrate
 Migration mới chỉ thêm bảng addresses, không cần seed hoặc migrate:fresh. Dừng
 và khởi động lại backend nếu môi trường đang giữ route/config cũ. Để kiểm thử,
 chọn database **riêng** theo hướng dẫn trong báo cáo; không chạy reset DB thật.
+
+## Nền tảng dữ liệu giỏ hàng (UC14-T01)
+
+Đã bổ sung hai bảng `carts`, `cart_items`, model `Cart`/`CartItem` và quan hệ
+`User::cart()`. Mỗi user tối đa một giỏ; mỗi SKU tối đa một dòng trong giỏ.
+`quantity` là INT UNSIGNED bắt buộc, có CHECK >= 1. Xóa user/giỏ sẽ cascade
+dữ liệu giỏ tương ứng; xóa cứng SKU sẽ bỏ dòng giỏ của SKU đó. Các quan hệ này
+không áp dụng cho dữ liệu lịch sử đơn hàng.
+
+Phần nền tảng T01 lưu SKU và số lượng. API và giao diện thêm giỏ đã có ở T02/T03
+bên dưới. Giỏ không tự tạo khi đăng ký, không giữ giá hoặc trừ/giữ tồn. T02 thực
+hiện kiểm tra quyền, điều kiện bán, giới hạn theo tồn và transaction nghiệp vụ.
+
+Migration mới đã chạy trên `shophub` local (MariaDB 10.11.16) ngày 19/11/2026,
+batch 7; chạy lại không phát sinh thay đổi. Số dòng và checksum của 18 bảng cũ
+(ngoài bảng lịch sử migrations) được đối chiếu và giữ nguyên. Khi cài trên
+database local khác, xác minh kết nối rồi từ `backend/` chạy riêng:
+
+```powershell
+php artisan migrate --path=database/migrations/2026_11_19_100000_create_carts_table.php --path=database/migrations/2026_11_19_100001_create_cart_items_table.php
+```
+
+Kiểm thử schema/model: mở **terminal riêng**, xác minh MySQL/MariaDB đang chạy
+ở host local, rồi từ `backend/` thực hiện:
+
+```powershell
+$env:APP_ENV = 'testing'
+$env:DB_CONNECTION = 'mysql'
+php scripts/catalog-test-database.php
+# Chỉ tiếp tục khi helper tạo database mới thành công.
+$cartTestInfo = Get-Content storage/framework/testing/catalog-api-database.json -Raw | ConvertFrom-Json
+$env:DB_DATABASE = $cartTestInfo.database
+$env:CATALOG_TEST_DATABASE = $cartTestInfo.database
+php artisan test --compact --filter=CartFoundationTest
+```
+
+Đóng terminal kiểm thử sau khi dùng để không giữ biến môi trường DB cho thao
+tác local khác. Bộ test chỉ dùng database có tên test hợp lệ hoặc SQLite trong
+bộ nhớ khi thiếu biến `CATALOG_TEST_DATABASE`; nhánh SQLite phục vụ tương thích,
+không thay kết quả nghiệm thu MariaDB. Các ca kiểm tra rollback thật chỉ tác
+động hai migration mới trên kết nối test cách ly, không rollback `shophub`.
+
+## API thêm giỏ (UC14-T02)
+
+Customer active dùng Sanctum cookie/session để gọi:
+
+- `POST /api/customer/cart/items`: gửi JSON integer `product_variant_id` và
+  `quantity`; tạo dòng mới (201) hoặc cộng vào dòng đã có (200).
+- `GET /api/customer/cart/summary?product_variant_id=...`: đọc số dòng, tổng số
+  lượng và dòng SKU được hỏi của chính tài khoản; đọc không tự tạo giỏ.
+
+Backend kiểm tra quyền, trạng thái bán, giá và tồn trong transaction; khóa user,
+giỏ và catalog theo thứ tự thống nhất. Vượt tồn trả 409, dữ liệu giỏ cũ giữ nguyên.
+Thêm giỏ không giữ/trừ tồn hoặc khóa giá. Mỗi POST thành công cộng một lần; client
+không tự retry khi mất phản hồi, dùng GET để đối chiếu trước khi thêm tiếp.
+
+Xem [contract đầy đủ](docs/api/customer-cart.md). Không có migration/seeder mới
+trong T02. Nút thêm giỏ và giao diện phản hồi đã được nối ở UC14-T03; API xem toàn
+bộ giỏ, đổi/xóa dòng và checkout thuộc UC15, UC16, UC18.
+
+Sau khi chuẩn bị terminal/DB test riêng theo hướng dẫn UC14-T01 ở trên, migrate
+DB test rồi kiểm tra backend từ `backend/`:
+
+```powershell
+php artisan migrate --force
+php artisan test --compact --filter='CartApiTest|CartConcurrencyTest'
+```
+
+Test cạnh tranh chạy các process/kết nối MariaDB độc lập, không chạy trên
+database `shophub` đang dùng. Xem điều kiện và quy ước khóa trong contract.
+
+## Giao diện thêm giỏ (UC14-T03)
+
+Mở một sản phẩm public, chọn phiên bản và nhập **Số lượng cần thêm**. Customer
+đang hoạt động có thể thêm SKU và xem số lượng đã lưu ngay tại trang chi tiết.
+Khách chưa đăng nhập được đưa đến đăng nhập; lựa chọn được giữ qua cả đăng ký,
+quay lại sản phẩm và xác nhận thêm bằng nút. Đường dẫn quay lại chỉ nhận ngữ
+cảnh sản phẩm nội bộ đã kiểm tra. Đăng nhập thông thường vẫn về `/account`.
+
+Form có loading, lỗi từng field/focus, phản hồi tồn hiện tại, chống submit trùng
+bằng ref và thông báo thành công theo SKU. Hết hàng/admin/demo không gửi thao
+tác thêm. Giao diện dùng API và Axios chung hiện có; không có dependency mới.
+
+Nếu POST đã gửi nhưng mất phản hồi hoặc trả 5xx, form khóa thêm và cho **Kiểm
+tra giỏ đã lưu** bằng GET. Một marker trong sessionStorage của tab giữ ngữ cảnh
+theo backend/tài khoản, gồm ID SKU, số lượng, tên sản phẩm/phiên bản và nonce;
+không chứa mật khẩu/token/địa chỉ. Refresh hoặc rời trang khi đang gửi vẫn giữ
+marker. Tài khoản khác không đọc/hiển thị marker đó; cùng tài khoản quay lại
+phải đối chiếu trước khi thêm tiếp. Đối chiếu không tự phát lại POST và không
+khẳng định một request cụ thể đã thành công nếu có nhiều tab.
+
+Nếu trình duyệt chặn lưu marker, form báo lỗi trước khi gửi POST. Lỗi lấy CSRF
+trước POST được phân biệt với kết quả ghi chưa xác định. 401/403 xóa trạng thái
+user đã cache; lựa chọn sản phẩm được giữ để đăng nhập lại. Xem thêm
+[contract API và hành vi giao diện](docs/api/customer-cart.md).
+
+Kiểm tra local: chạy Laravel và Vite theo hướng dẫn ở trên, dùng catalog nguồn
+`api`, đăng nhập customer và mở chi tiết sản phẩm có SKU còn hàng. Chế độ `demo`
+chỉ hiển thị thông báo, không có thao tác giỏ thật. Trang xem/chỉnh toàn bộ giỏ
+thuộc UC15/UC16; checkout thuộc UC18.
+
+Browser QA dùng MariaDB instance/datadir riêng, database test mới đã migrate và
+Chrome headless. Từ `frontend/`, sau khi chuẩn bị metadata bằng hai helper DB
+hiện có trong `backend/scripts/`, chạy:
+
+```powershell
+node scripts/t02-admin-catalog-review.mjs --cart
+# --cart-demo cần một database test MỚI khác, đã migrate và chưa có account.
+node scripts/t02-admin-catalog-review.mjs --cart-demo
+```
+
+Harness tạo password ngẫu nhiên trong bộ nhớ, dùng cookie/CSRF và API thật;
+test lỗi bằng chặn mạng/đổi payload/cắt delivery sau server commit, không giả
+response thành công. JSON kết quả và ảnh viewport 1440/390 nằm trong
+`backend/storage/framework/testing/` (ignored). Fixture helper T03 chỉ chạy trên
+database test được chọn rõ ràng. Không chạy helper trên `shophub` đang dùng.
+
+## Nghiệm thu thêm giỏ (UC14-T04 — 19/11/2026)
+
+Nghiệm thu bản mã nền `5a6d141` cùng phần bổ sung kiểm thử T04 trên nhánh
+`feature/uc14-add-to-cart`. Backend đạt **143 test, 2002 assertions**; nhóm cart
+và cạnh tranh chạy MariaDB 10.11.16 trên instance/datadir riêng, một số test auth
+và seeder cũ tiếp tục dùng SQLite in-memory cách ly theo thiết kế của chúng.
+
+Chrome đạt **21 kịch bản API thật, 229 phản hồi API**, không có Runtime exception.
+Gồm 17 kịch bản T03 và bốn ca mới: mất delivery của 201 tạo giỏ/dòng đầu tiên,
+trình duyệt chặn sessionStorage, SKU ngừng hoạt động trong lúc đăng nhập, và
+đối chiếu lần thêm cũ khi chuyển sang sản phẩm khác. Chế độ demo đạt một kịch
+bản riêng ở 1440px, không phát POST giỏ; UI API được kiểm tra ở 1440/768/390px
+và bàn phím. Build/lint, PHP syntax/Pint và diff check đạt; lint còn warning cũ
+`ConnectionPage.jsx:9` ngoài phạm vi UC14.
+
+Chạy lại bằng các database test riêng theo hướng dẫn chuẩn bị trong contract:
+
+```powershell
+# backend/: terminal đã xác minh DB test, migrate trước khi chạy test
+php artisan test --compact
+# frontend/: DB browser mới khác, đã migrate, chưa có account/fixture
+node scripts/t02-admin-catalog-review.mjs --cart-acceptance
+# DB browser demo mới khác, đã migrate, chưa có account/fixture
+node scripts/t02-admin-catalog-review.mjs --cart-acceptance --cart-demo
+```
+
+Kết quả và ảnh viewport được lưu riêng với prefix `uc14-t04-` trong
+`backend/storage/framework/testing/` (ignored), không ghi đè bằng chứng T03.
+Xem [ma trận nghiệm thu](docs/api/customer-cart.md#ma-trận-nghiệm-thu-uc14-t04).
+
+Giới hạn lượt T04: kết nối đọc schema `shophub` local ở 127.0.0.1:3306 bị từ
+chối, nên chưa đối chiếu lại metadata local trong lượt này; kết quả migrate
+local T01 ở trên là bằng chứng của lượt trước. T04 không migrate/seed/reset dữ
+liệu local. Giao diện được kiểm tra bằng Chrome emulation, chưa kiểm tra thiết
+bị vật lý hoặc trình duyệt khác. Trang xem/sửa giỏ và checkout vẫn là UC riêng.
+
+Bổ sung sau xử lý lỗi API cùng ngày: MariaDB local đã được bật lại; đã đọc
+schema `shophub` thành công, xác nhận hai migration giỏ ở batch 7, FK/index và
+CHECK `cart_items_quantity_positive` còn đầy đủ. Kết quả chỉ đọc lưu tại
+`storage/framework/testing/uc14-t04-local-results.json`; không migrate/seed/reset
+database local trong lượt sửa lỗi.
 
 ## Địa chỉ local
 

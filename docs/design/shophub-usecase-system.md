@@ -17,26 +17,9 @@ V1 chỉ lưu hai role. Các đầu mối Backend, Frontend và QA là vai trò 
 
 ## 2. Use case tổng thể
 
-Sơ đồ tóm tắt các nhóm nghiệp vụ trong phạm vi ShopHub. Bảng bên dưới liệt kê từng use case.
+Sơ đồ tổng thể mô tả các nghiệp vụ trong thiết kế MVP. Chú giải thể hiện tiến độ trên nhánh UC14 tại thời điểm cập nhật sơ đồ. Bảng bên dưới giữ mã use case và mốc kế hoạch của từng task.
 
-```mermaid
-flowchart TB
-    G["Khách vãng lai"]
-    C["Khách hàng"]
-    A["Quản trị viên"]
-    subgraph SH["ShopHub MVP"]
-        P(["Khám phá sản phẩm"])
-        B(["Mua hàng COD"])
-        O(["Theo dõi đơn cá nhân"])
-        M(["Quản trị catalog và đơn"])
-    end
-    G --- P
-    C --- P
-    C --- B
-    C --- O
-    A --- M
-    B -. "Đơn mới để xử lý" .-> M
-```
+![Sơ đồ use case tổng thể ShopHub](shophub-usecase-overview.svg)
 
 **Mốc:** Có mã trên GitHub · MVP · Sau MVP. Các task tương ứng được mô tả ở mục 6.
 

@@ -1,13 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../components/Icon';
 import StorefrontFooter from '../components/StorefrontFooter';
 import HeaderUtilities from '../components/HeaderUtilities';
+import CatalogLoadNotice from '../components/CatalogLoadNotice';
+import { CatalogLoadContext } from '../contexts/CatalogLoadContext';
 import useCatalog from '../hooks/useCatalog';
 import { catalogSource } from '../services/catalogService';
 import { categoryUrl } from '../utils/catalog';
 
-function Header({ categories }) {
+function Header({ categories, categoriesUnavailable }) {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const [open, setOpen] = useState(false);
@@ -40,7 +42,8 @@ function Header({ categories }) {
           <Link className="brand" to="/" aria-label="ShopHub — Trang chủ"><span className="brand-mark"><Icon name="bag" /></span><span><span className="brand-word">Shop<b>Hub</b></span><span className="brand-sub">Công nghệ & Cuộc sống</span></span></Link>
           <form className="searchbar" role="search" onSubmit={search}>
             <label className="visually-hidden" htmlFor="header-category">Danh mục tìm kiếm</label>
-            <select className="cat-select" id="header-category" name="category" defaultValue={params.get('category') || ''}><option value="">Tất cả danh mục</option>{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select>
+            <select key={categories.length} className="cat-select" id="header-category" name="category" disabled={categoriesUnavailable} defaultValue={params.get('category') || ''}><option value="">Tất cả danh mục</option>{params.get('category') && !categories.some((category) => category.slug === params.get('category')) && <option value={params.get('category')}>Danh mục đang chọn</option>}{categories.map((category) => <option key={category.slug} value={category.slug}>{category.name}</option>)}</select>
+            {categoriesUnavailable && params.get('category') && <input type="hidden" name="category" value={params.get('category')} />}
             <label className="visually-hidden" htmlFor="header-search">Tìm sản phẩm</label>
             <input id="header-search" name="q" type="search" placeholder="Tìm laptop, linh kiện, đồ gia dụng…" defaultValue={params.get('q') || ''} maxLength={200} />
             <button className="search-btn" type="submit" aria-label="Tìm kiếm"><Icon name="search" /></button>
@@ -69,11 +72,27 @@ function Header({ categories }) {
 }
 
 export default function PublicLayout() {
-  const catalog = useCatalog();
+  const catalog = useCatalog(undefined, { keepData: true });
   const location = useLocation();
   const main = useRef(null);
   const [backTop, setBackTop] = useState(false);
   const categories = catalog.data?.categories || [];
+  const [requests, setRequests] = useState({});
+  const report = useCallback((id, request) => setRequests((previous) => ({ ...previous, [id]: request })), []);
+  const remove = useCallback((id) => setRequests((previous) => {
+    const next = { ...previous };
+    delete next[id];
+    return next;
+  }), []);
+  const loadContext = useMemo(() => ({ report, remove }), [report, remove]);
+  const metadataErrors = [catalog.error, ...Object.values(catalog.data?.errors || {})].filter(Boolean);
+  const pending = Object.values(requests);
+  const errors = [...metadataErrors, ...pending.map((request) => request.error)].filter(Boolean);
+  const loading = catalog.loading || pending.some((request) => request.loading);
+  function retryCatalog() {
+    if (metadataErrors.length) catalog.retry();
+    pending.filter((request) => request.error).forEach((request) => request.retry());
+  }
   useEffect(() => {
     const accountTitles = { '/login': 'Đăng nhập', '/register': 'Đăng ký', '/account': 'Tài khoản' };
     const title = accountTitles[location.pathname] || (location.pathname.startsWith('/products') ? 'Sản phẩm' : null);
@@ -89,9 +108,10 @@ export default function PublicLayout() {
   return (
     <div className="storefront">
       <a className="skip-link" href="#main">Đến nội dung chính</a>
-      <Header key={`${location.pathname}${location.search}`} categories={categories} />
+      <Header key={`${location.pathname}${location.search}`} categories={categories} categoriesUnavailable={catalog.loading || !!catalog.data?.errors?.categories} />
       <div className="demo-notice"><div className="wrap"><span className="demo-dot" /><span>{catalogSource === 'demo' ? 'Bản xem trước · Sản phẩm, giá, tồn kho và thông số là dữ liệu demo. Chưa hỗ trợ đặt hàng.' : 'Catalog công khai · Chức năng đặt hàng đang được phát triển.'}</span></div></div>
-      <main id="main" className="main-content" ref={main} tabIndex={-1}><Outlet context={catalog} /></main>
+      <CatalogLoadNotice loading={loading} errors={errors} retry={retryCatalog} />
+      <main id="main" className="main-content" ref={main} tabIndex={-1}><CatalogLoadContext.Provider value={loadContext}><Outlet context={catalog} /></CatalogLoadContext.Provider></main>
       <StorefrontFooter categories={categories} brands={catalog.data?.brands || []} />
       <button className={`back-top ${backTop ? 'show' : ''}`} onClick={() => window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' })} aria-label="Về đầu trang"><Icon name="arrow" /></button>
     </div>

@@ -2,6 +2,8 @@ param([ValidateRange(1024, 65535)][int]$Port = 8000)
 $ErrorActionPreference = 'Stop'
 $backendRoot = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $phpBinary = (Get-Command php -ErrorAction Stop).Source
+& $phpBinary (Join-Path $PSScriptRoot 'check-local-database.php')
+if ($LASTEXITCODE -ne 0) { throw 'Backend startup stopped: local database is unavailable. See the database check above.' }
 $modules = & $phpBinary -m
 $phpArguments = @()
 if (-not ($modules -contains 'Zend OPcache')) {
@@ -16,6 +18,6 @@ $phpArguments += @('-d', 'upload_max_filesize=5M', '-d', 'post_max_size=60M')
 $router = Join-Path $backendRoot 'vendor/laravel/framework/src/Illuminate/Foundation/resources/server.php'
 $phpArguments += @('-S', "localhost:$Port", '-t', (Join-Path $backendRoot 'public'), $router)
 Write-Host "ShopHub local: http://localhost:$Port - OPcache CLI; checks file changes on every request. Ctrl+C to stop."
-Push-Location $backendRoot
+Push-Location (Join-Path $backendRoot 'public')
 try { & $phpBinary @phpArguments }
 finally { Pop-Location }

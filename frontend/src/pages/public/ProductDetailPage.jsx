@@ -1,27 +1,38 @@
 import { useCallback, useRef, useState } from 'react';
 import useCatalog from '../../hooks/useCatalog';
 import { getProductDetail, isDemoCatalog } from '../../services/catalogService';
-import { Link, useOutletContext, useParams } from 'react-router-dom';
-import CatalogStatus from '../../components/CatalogStatus';
+import { Link, useLocation, useParams } from 'react-router-dom';
 import ProductMedia from '../../components/ProductMedia';
 import RelatedProducts from '../../components/RelatedProducts';
 import Icon from '../../components/Icon';
 import NotFoundPage from './NotFoundPage';
+import AddToCartForm from '../../components/AddToCartForm';
+import { MAX_CART_QUANTITY, positiveInteger } from '../../utils/cart';
 import { categoryUrl, formatPrice, getDiscount } from '../../utils/catalog';
 
 const tabs = [['description', 'Mô tả sản phẩm'], ['specs', 'Thông số kỹ thuật'], ['warranty', 'Bảo hành & lưu ý'], ['reviews', 'Đánh giá']];
 
-function DetailContent({ product, category }) {
+function DetailContent({ product, category, onReload }) {
   const variants = product.variants.filter((item) => item.is_active);
-  const [sku, setSku] = useState(variants[0]?.sku);
+  const location = useLocation();
+  const parameters = new URLSearchParams(location.search);
+  const requestedVariant = positiveInteger(parameters.get('variant'));
+  const restored = variants.find((item) => item.id === requestedVariant);
+  const [sku, setSku] = useState(restored?.sku || variants[0]?.sku);
+  const [selectionRequired, setSelectionRequired] = useState(parameters.has('variant') && !restored);
+  const [cartLocked, setCartLocked] = useState(false);
+  const [stockOverrides, setStockOverrides] = useState({});
   const [imageIndex, setImageIndex] = useState(0);
   const [tab, setTab] = useState('description');
   const tabRefs = useRef([]);
-  const variant = variants.find((item) => item.sku === sku) || variants[0];
+  const selected = variants.find((item) => item.sku === sku) || variants[0];
+  const variant = selected && stockOverrides[selected.id] !== undefined ? { ...selected, stock_quantity: stockOverrides[selected.id] } : selected;
   const image = product.images[imageIndex];
   if (!variant) return <NotFoundPage product />;
   const discount = getDiscount(variant);
   const warrantyLabel = product.warranty_months == null ? 'Chưa có thông tin' : `${product.warranty_months} tháng`;
+  function chooseVariant(item) { if (!cartLocked) { setSku(item.sku); setSelectionRequired(false); } }
+  function updateStock(id, stock) { setStockOverrides((current) => ({ ...current, [id]: stock })); }
   function tabKey(event, index) {
     let next;
     if (event.key === 'ArrowRight') next = (index + 1) % tabs.length;
@@ -72,24 +83,28 @@ function DetailContent({ product, category }) {
             </div>
             <p className="pdp-lead">{product.short_description}</p>
             {variants.length > 1 && (
-              <fieldset className="variant-group"><legend className="vg-label">Màu sắc: <span>{variant.name}</span></legend><div className="swatches">
-                {variants.map((item) => <button key={item.sku} type="button" className="swatch" style={{ backgroundColor: item.color }} aria-label={`Màu ${item.name}${item.stock_quantity ? '' : ', hết hàng'}`} aria-pressed={item.sku === sku} onClick={() => setSku(item.sku)} />)}
+              <fieldset className="variant-group" disabled={cartLocked}><legend className="vg-label">Màu sắc: <span>{variant.name}</span></legend><div className="swatches">
+                {variants.map((item) => <button key={item.sku} type="button" className="swatch" style={{ backgroundColor: item.color }} aria-label={`Màu ${item.name}${item.stock_quantity ? '' : ', hết hàng'}`} aria-pressed={item.sku === sku} onClick={() => chooseVariant(item)} />)}
               </div></fieldset>
             )}
-            <fieldset className="variant-group">
+            <fieldset className="variant-group" disabled={cartLocked}>
               <legend className="vg-label">Chọn phiên bản: <span>{variant.name}</span></legend>
-              <div className="opt-btns">{variants.map((item) => <button key={item.sku} className="opt-btn" type="button" aria-pressed={item.sku === sku} onClick={() => setSku(item.sku)}>{item.name}{item.stock_quantity === 0 && <small> — Hết hàng</small>}</button>)}</div>
+              <div className="opt-btns">{variants.map((item) => <button key={item.sku} className="opt-btn" type="button" aria-pressed={item.sku === sku} onClick={() => chooseVariant(item)}>{item.name}{item.stock_quantity === 0 && <small> — Hết hàng</small>}</button>)}</div>
             </fieldset>
+            {selectionRequired && <p className="cart-selection-notice" role="alert">Phiên bản trước đó không còn hợp lệ. Vui lòng chọn lại phiên bản bên trên.</p>}
+            <AddToCartForm key={variant.id || variant.sku} product={product} variant={variant} selectionRequired={selectionRequired}
+              initialQuantity={restored?.id === variant.id ? positiveInteger(parameters.get('quantity'), MAX_CART_QUANTITY) || 1 : 1}
+              onLockChange={setCartLocked} onStockChange={updateStock} onReload={onReload} />
             <div className="buy-row">
               <Link className="btn-bz" to={categoryUrl(category.slug)}><Icon name="grid" />Xem cùng danh mục</Link>
               <button type="button" className="btn-bz btn-gold" onClick={showSpecs}>Xem thông số<Icon name="arrow" /></button>
             </div>
-            <p className="browse-note">Bản xem trước catalog. Chức năng đặt hàng chưa được triển khai.</p>
+            <p className="browse-note">{isDemoCatalog ? 'Bản xem trước catalog với dữ liệu demo.' : 'Bạn có thể thêm vào giỏ. Đặt hàng và thanh toán đang được phát triển.'}</p>
             <div className="pdp-assure">
               <div className="pa"><Icon name="shield" /><span><b>Bảo hành</b>{warrantyLabel}</span></div>
               <div className="pa"><Icon name="check" /><span><b>Giá theo phiên bản</b>SKU và giá cập nhật khi chọn</span></div>
               <div className="pa"><Icon name="chip" /><span><b>Thông số sản phẩm</b>{product.specs.length ? 'Xem chi tiết trong tab thông số' : 'Đang cập nhật'}</span></div>
-              <div className="pa"><Icon name="home" /><span><b>Khám phá tự do</b>Chưa mở bán và thanh toán</span></div>
+              <div className="pa"><Icon name="home" /><span><b>Tiếp tục mua sắm</b>Chọn đúng phiên bản bạn cần</span></div>
             </div>
           </div>
         </section>
@@ -120,12 +135,11 @@ function DetailContent({ product, category }) {
 
 export default function ProductDetailPage() {
   const { slug } = useParams();
-  const catalog = useOutletContext();
+  const location = useLocation();
   const loader = useCallback((options) => getProductDetail(slug, options), [slug]);
-  const detail = useCatalog(loader);
-  if (!catalog.data) return <CatalogStatus {...catalog} />;
+  const detail = useCatalog(loader, { ignoreNotFound: true });
   if (detail.status === 404) return <NotFoundPage product />;
-  if (!detail.data) return <CatalogStatus {...detail} />;
+  if (!detail.data) return null;
   const { product } = detail.data;
-  return <DetailContent key={product.slug} product={product} category={product.category} />;
+  return <DetailContent key={`${product.slug}:${location.search}`} product={product} category={product.category} onReload={detail.retry} />;
 }

@@ -1,0 +1,25 @@
+.storefront .cart-add { margin-top: 24px; padding: 20px; border: 1px solid var(--line); border-radius: 12px; background: #f8faf9; }
+.storefront .cart-add-row { display: flex; align-items: flex-end; gap: 14px; }
+.storefront .cart-quantity { flex: 0 0 145px; }
+.storefront .cart-quantity label { display: block; margin-bottom: 7px; color: var(--ink); font-size: .78rem; font-weight: 600; }
+.storefront .cart-quantity input { box-sizing: border-box; width: 100%; min-height: 48px; padding: 10px 12px; border: 1px solid #a3b2b7; border-radius: 7px; background: #fff; color: var(--ink); font: inherit; }
+.storefront .cart-quantity input[aria-invalid="true"] { border-color: #a33732; }
+.storefront .cart-add .cart-submit { flex: 1; min-height: 48px; padding: 10px 14px; font-size: .82rem; white-space: normal; }
+.storefront .cart-add button:disabled, .storefront .cart-quantity input:disabled { cursor: not-allowed; opacity: .65; }
+.storefront .cart-help { margin: 12px 0 0; font-size: .76rem; line-height: 1.6; color: #465a63; }
+.storefront .cart-feedback, .storefront .cart-reconcile { margin: 0 0 16px; padding: 12px; border: 1px solid; border-radius: 7px; font-size: .82rem; line-height: 1.65; overflow-wrap: anywhere; }
+.storefront .cart-error { color: #8d2825; background: #fff4f2; border-color: #e6b7b1; }
+.storefront .cart-success { color: #155b45; background: #effaf3; border-color: #9bcdb8; }
+.storefront .cart-reconcile { color: #684614; background: #fff8e8; border-color: #d9bd83; }
+.storefront .cart-reconcile p { margin: 0 0 10px; }
+.storefront .cart-reconcile .btn-bz { font-size: .78rem; min-height: 44px; }
+.storefront .cart-field-error { margin: 8px 0 0; font-size: .78rem; color: #8d2825; }
+.storefront .cart-reload, .storefront .cart-feedback button { min-height: 44px; margin-top: 8px; color: inherit; text-decoration: underline; background: transparent; border: 0; font: inherit; cursor: pointer; }
+.storefront .cart-add input:focus-visible, .storefront .cart-add button:focus-visible { outline: 3px solid #155e75; outline-offset: 3px; }
+.storefront .cart-selection-notice { margin-top: 14px; font-size: .82rem; color: #8d2825; }
+@media (max-width: 620px) {
+  .storefront .cart-add { padding: 16px; }
+  .storefront .cart-add-row { flex-wrap: wrap; }
+  .storefront .cart-quantity { flex: 1 1 100%; }
+  .storefront .cart-add .cart-submit { flex-basis: 100%; }
+}

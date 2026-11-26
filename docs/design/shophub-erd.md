@@ -7,15 +7,28 @@ Tài liệu mô tả 17 bảng nghiệp vụ theo mô hình cửa hàng một ng
 | Nhóm | Hiện trạng | Task |
 |---|---|---|
 | Danh mục, thương hiệu, sản phẩm, ảnh, SKU, thông số | Có migration trên dev tại `71687af` | T01 kiểm tra, T02–T04 bổ sung quản trị |
-| Người dùng | Bảng Laravel có sẵn. Migration bổ sung quyền và trạng thái nằm trên nhánh auth tại `33730ff` | T00 |
-| Địa chỉ, giỏ | Thiết kế mục tiêu | T05–T06 |
+| Người dùng | Có bảng users và migration bổ sung quyền, trạng thái | T00 |
+| Địa chỉ, giỏ | Có migration trên nhánh UC14 | T05–T06 |
 | Đơn, dòng đơn, lịch sử, thanh toán | Thiết kế mục tiêu | T07–T09 |
 | Banner | Thiết kế mục tiêu | T10 |
+
+## Tổng quan
+
+ShopHub phục vụ một cửa hàng bán lẻ có một nguồn tồn kho. Khách có thể xem catalog công khai. Khách hàng dùng tài khoản để lưu địa chỉ, thêm SKU vào giỏ và đặt COD. Quản trị viên quản lý catalog và xử lý đơn theo quy trình của cửa hàng.
+
+Luồng dữ liệu từ catalog đến đơn COD
+
+```text
+categories + brands → products → product_variants
+users → carts → cart_items → product_variants
+users → addresses → bản chụp địa chỉ trên orders
+users → orders → order_items + order_status_histories + payments
+```
 
 ## 1. Quy ước dữ liệu
 
 - PK: BIGINT UNSIGNED tự tăng; FK: cùng kiểu với PK được tham chiếu.
-- Mọi bảng có id, created_at, updated_at, trừ pivot category_specification chỉ dùng khóa chính ghép và timestamps.
+- Các bảng dùng id, created_at và updated_at. Riêng category_specification dùng khóa chính ghép và vẫn có timestamps.
 - NN = NOT NULL; NULL = có thể bỏ trống.
 - Tiền VND dùng BIGINT UNSIGNED, không lưu chuỗi có dấu phân cách và không dùng float.
 - Số lượng tồn và số lượng mua dùng INT UNSIGNED; số lượng mua bắt buộc >= 1.
@@ -27,15 +40,259 @@ Tài liệu mô tả 17 bảng nghiệp vụ theo mô hình cửa hàng một ng
 
 ## 2. ERD theo module
 
+![ERD thiết kế của ShopHub theo mô-đun](shophub-erd-overview.svg)
+
+Ảnh tổng thể thể hiện 12 bảng nghiệp vụ có migration và 5 bảng dự kiến trên nhánh UC14. Các khối Mermaid bên dưới cung cấp sơ đồ riêng từng mô-đun.
+
+### ERD tổng thể bằng Mermaid
+
+Sơ đồ gồm 17 bảng nghiệp vụ với kiểu cột và ký hiệu PK (khóa chính), FK (khóa ngoại), UK (duy nhất). Nét liền là quan hệ định danh, khi FK tham gia PK của bảng con. Chú thích “unique theo cặp” áp dụng cho tổ hợp hai cột. Kiểu có hậu tố _unsigned biểu thị kiểu số UNSIGNED trong từ điển dữ liệu.
+
+Bốn bảng đơn hàng/thanh toán và bảng banners là thiết kế dự kiến. Lực lượng của các quan hệ đơn hàng phản ánh thiết kế nghiệp vụ. Checkout tạo ít nhất một dòng hàng, một lịch sử khởi tạo và đúng một bản ghi thanh toán COD trong bản đầu. Mô hình dữ liệu cho phép nhiều bản ghi thanh toán trên một đơn để mở rộng.
+
+```mermaid
+erDiagram
+    direction LR
+    categories o|..o{ categories : is_parent_of
+    categories ||..o{ products : classifies
+    brands ||..o{ products : owns
+    products ||..o{ product_images : displays
+    products ||..o{ product_variants : sells
+    categories ||--o{ category_specification : defines
+    specifications ||--o{ category_specification : applies
+    products ||..o{ product_specification_values : describes
+    specifications ||..o{ product_specification_values : names
+    users ||..o{ addresses : stores
+    users ||..o| carts : owns
+    carts ||..o{ cart_items : contains
+    product_variants ||..o{ cart_items : selected
+    users ||..o{ orders : places
+    orders ||..|{ order_items : contains
+    product_variants o|..o{ order_items : references
+    orders ||..|{ order_status_histories : records
+    orders ||..o{ payments : receives
+    users o|..o{ order_status_histories : changes
+
+    users {
+        bigint_unsigned id PK
+        varchar(255) name
+        varchar(255) email UK
+        timestamp email_verified_at "nullable"
+        varchar(255) password
+        varchar(20) phone "nullable"
+        varchar(20) role
+        boolean is_active
+        varchar(100) remember_token "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    addresses {
+        bigint_unsigned id PK
+        bigint_unsigned user_id FK
+        varchar(255) recipient_name
+        varchar(20) phone
+        varchar(100) province
+        varchar(100) ward
+        varchar(255) address_line
+        boolean is_default
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    categories {
+        bigint_unsigned id PK
+        bigint_unsigned parent_id FK "nullable"
+        varchar(150) name
+        varchar(180) slug UK
+        varchar(255) image_path "nullable"
+        int_unsigned sort_order
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    brands {
+        bigint_unsigned id PK
+        varchar(150) name UK
+        varchar(180) slug UK
+        varchar(255) logo_path "nullable"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    products {
+        bigint_unsigned id PK
+        bigint_unsigned category_id FK
+        bigint_unsigned brand_id FK
+        varchar(255) name
+        varchar(255) slug UK
+        text short_description "nullable"
+        longtext description "nullable"
+        smallint_unsigned warranty_months
+        varchar(20) status
+        boolean is_featured
+        timestamp deleted_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    product_images {
+        bigint_unsigned id PK
+        bigint_unsigned product_id FK
+        varchar(255) path
+        varchar(255) alt_text "nullable"
+        int_unsigned sort_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    product_variants {
+        bigint_unsigned id PK
+        bigint_unsigned product_id FK
+        varchar(100) sku UK
+        varchar(150) name
+        json options "nullable"
+        bigint_unsigned list_price
+        bigint_unsigned sale_price
+        int_unsigned stock_quantity
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    specifications {
+        bigint_unsigned id PK
+        varchar(100) name
+        varchar(100) code UK
+        varchar(30) unit "nullable"
+        boolean is_active
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    category_specification {
+        bigint_unsigned category_id PK, FK
+        bigint_unsigned specification_id PK, FK
+        boolean is_required
+        int_unsigned sort_order
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    product_specification_values {
+        bigint_unsigned id PK
+        bigint_unsigned product_id FK "unique theo cặp"
+        bigint_unsigned specification_id FK "unique theo cặp"
+        text value
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    carts {
+        bigint_unsigned id PK
+        bigint_unsigned user_id FK, UK
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    cart_items {
+        bigint_unsigned id PK
+        bigint_unsigned cart_id FK "unique theo cặp"
+        bigint_unsigned product_variant_id FK "unique theo cặp"
+        int_unsigned quantity
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    orders {
+        bigint_unsigned id PK
+        bigint_unsigned user_id FK
+        varchar(40) order_code UK
+        char(36) checkout_token UK
+        varchar(255) recipient_name "snapshot"
+        varchar(20) recipient_phone "snapshot"
+        varchar(100) shipping_province "snapshot"
+        varchar(100) shipping_ward "snapshot"
+        varchar(255) shipping_address_line "snapshot"
+        bigint_unsigned subtotal
+        bigint_unsigned shipping_fee
+        bigint_unsigned discount_total
+        bigint_unsigned grand_total
+        varchar(30) payment_method
+        varchar(30) payment_status
+        varchar(30) status
+        text note "nullable"
+        text cancellation_reason "nullable"
+        timestamp cancelled_at "nullable"
+        timestamp completed_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    order_items {
+        bigint_unsigned id PK
+        bigint_unsigned order_id FK
+        bigint_unsigned product_variant_id FK "nullable"
+        varchar(255) product_name "snapshot"
+        varchar(150) variant_name "snapshot"
+        varchar(100) sku "snapshot"
+        varchar(255) image_path "nullable, snapshot"
+        bigint_unsigned unit_price
+        int_unsigned quantity
+        bigint_unsigned line_total
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    order_status_histories {
+        bigint_unsigned id PK
+        bigint_unsigned order_id FK
+        bigint_unsigned changed_by FK "nullable"
+        varchar(30) from_status "nullable"
+        varchar(30) to_status
+        text note "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    payments {
+        bigint_unsigned id PK
+        bigint_unsigned order_id FK
+        varchar(30) method
+        bigint_unsigned amount
+        varchar(30) status
+        varchar(150) transaction_code UK "nullable"
+        timestamp paid_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+
+    banners {
+        bigint_unsigned id PK
+        varchar(255) title
+        varchar(255) image_path
+        varchar(255) link_url "nullable"
+        varchar(50) position
+        int_unsigned sort_order
+        boolean is_active
+        timestamp starts_at "nullable"
+        timestamp ends_at "nullable"
+        timestamp created_at
+        timestamp updated_at
+    }
+```
+
 ### 2.1. Danh mục sản phẩm
 
 ```mermaid
 erDiagram
-    categories o|--o{ categories : parent
-    categories ||--o{ products : contains
-    brands ||--o{ products : owns
-    products ||--o{ product_images : displays
-    products ||--o{ product_variants : sells
+    categories o|..o{ categories : is_parent_of
+    categories ||..o{ products : classifies
+    brands ||..o{ products : owns
+    products ||..o{ product_images : displays
+    products ||..o{ product_variants : sells
 ```
 
 Sản phẩm nháp có thể chưa có SKU. Khi công bố, kiểm tra điều kiện bán và SKU theo T04.
@@ -46,8 +303,8 @@ Sản phẩm nháp có thể chưa có SKU. Khi công bố, kiểm tra điều k
 erDiagram
     categories ||--o{ category_specification : defines
     specifications ||--o{ category_specification : applies
-    products ||--o{ product_specification_values : describes
-    specifications ||--o{ product_specification_values : names
+    products ||..o{ product_specification_values : describes
+    specifications ||..o{ product_specification_values : names
 ```
 
 Một thông số chỉ được gán cho sản phẩm nếu đã cấu hình cho đúng danh mục của sản phẩm. Bản đầu không tự kế thừa thông số từ danh mục cha; khai báo rõ trên từng danh mục lá.
@@ -56,22 +313,22 @@ Một thông số chỉ được gán cho sản phẩm nếu đã cấu hình ch
 
 ```mermaid
 erDiagram
-    users ||--o{ addresses : stores
-    users ||--o| carts : owns
-    carts ||--o{ cart_items : contains
-    product_variants ||--o{ cart_items : selected
+    users ||..o{ addresses : stores
+    users ||..o| carts : owns
+    carts ||..o{ cart_items : contains
+    product_variants ||..o{ cart_items : selected
 ```
 
 ### 2.4. Đơn hàng
 
 ```mermaid
 erDiagram
-    users ||--o{ orders : places
-    orders ||--|{ order_items : contains
-    product_variants o|--o{ order_items : references
-    orders ||--|{ order_status_histories : records
-    orders ||--o{ payments : receives
-    users o|--o{ order_status_histories : changes
+    users ||..o{ orders : places
+    orders ||..|{ order_items : contains
+    product_variants o|..o{ order_items : references
+    orders ||..|{ order_status_histories : records
+    orders ||..o{ payments : receives
+    users o|..o{ order_status_histories : changes
 ```
 
 order_items và orders lưu snapshot để lịch sử không thay đổi khi sửa sản phẩm hoặc địa chỉ.
@@ -83,6 +340,8 @@ banners độc lập và có thể liên kết đến URL nội bộ qua link_ur
 Các cột mặc định id/created_at/updated_at không lặp lại bên dưới.
 
 ### 3.1. users — mở rộng bảng Laravel hiện có
+
+Lưu tài khoản khách hàng và quản trị viên. Laravel cung cấp bảng gốc, ShopHub bổ sung số điện thoại, vai trò và trạng thái hoạt động. **Đã có migration.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -99,6 +358,8 @@ Không tạo lại users. Viết migration bổ sung phone, role, is_active. Đ�
 
 ### 3.2. addresses
 
+Lưu sổ địa chỉ của từng khách hàng. Khi đặt hàng, dữ liệu giao hàng được sao chép vào đơn. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | user_id | FK users | NN |
@@ -113,6 +374,8 @@ Không tạo lại users. Viết migration bổ sung phone, role, is_active. Đ�
 
 ### 3.3. categories
 
+Phân loại sản phẩm theo cây danh mục cha–con. Danh mục gốc có parent_id bằng NULL. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | parent_id | FK categories | NULL cho danh mục gốc |
@@ -126,6 +389,8 @@ INDEX(parent_id). Ngăn tự làm cha hoặc tạo vòng lặp. Chặn xóa danh
 
 ### 3.4. brands
 
+Lưu thương hiệu dùng chung cho nhiều sản phẩm. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | name | VARCHAR(150) | NN, UNIQUE |
@@ -136,6 +401,8 @@ INDEX(parent_id). Ngăn tự làm cha hoặc tạo vòng lặp. Chặn xóa danh
 Chặn xóa thương hiệu đang có sản phẩm.
 
 ### 3.5. products
+
+Lưu thông tin và trạng thái công bố của sản phẩm. Mỗi sản phẩm thuộc một danh mục chính và một thương hiệu. **Đã có migration.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -154,6 +421,8 @@ INDEX(category_id, status), INDEX(brand_id, status). Trang public chỉ trả s�
 
 ### 3.6. product_images
 
+Lưu các ảnh của sản phẩm và thứ tự hiển thị. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | product_id | FK products | NN |
@@ -164,6 +433,8 @@ INDEX(category_id, status), INDEX(brand_id, status). Trang public chỉ trả s�
 INDEX(product_id, sort_order). Ảnh đầu theo sort_order rồi id là ảnh đại diện; bản đầu không thêm is_primary để tránh nhiều ảnh cùng được đánh dấu.
 
 ### 3.7. product_variants
+
+Lưu SKU, giá niêm yết, giá bán và tồn kho cho từng biến thể có thể mua. **Đã có migration.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -180,6 +451,8 @@ INDEX(product_id, is_active). Kiểm tra 0 < sale_price <= list_price. Hết hà
 
 ### 3.8. specifications
 
+Lưu định nghĩa thông số dùng chung, ví dụ RAM hoặc công suất. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | name | VARCHAR(100) | NN, ví dụ RAM |
@@ -190,6 +463,8 @@ INDEX(product_id, is_active). Kiểm tra 0 < sale_price <= list_price. Hết hà
 Dữ liệu thông số bản đầu dạng text để hiển thị, không hứa hẹn lọc số học trên cột text. RAM lưu 16 nếu unit=GB, không lưu lặp 16 GB. Thông số dạng chuỗi như CPU có unit=NULL.
 
 ### 3.9. category_specification — pivot
+
+Gắn định nghĩa thông số với danh mục và quy định thông số nào bắt buộc khi công bố sản phẩm. **Đã có migration.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -202,6 +477,8 @@ PRIMARY KEY(category_id, specification_id), có timestamps, không có id riêng
 
 ### 3.10. product_specification_values
 
+Lưu giá trị thông số mà sản phẩm cung cấp trong cấu hình danh mục của nó. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | product_id | FK products | NN |
@@ -212,6 +489,8 @@ UNIQUE(product_id, specification_id). Backend kiểm tra thông số nằm trong
 
 ### 3.11. carts
 
+Lưu giỏ mua hàng của một khách hàng. Giỏ được tạo khi cần. **Đã có migration.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | user_id | FK users | NN, UNIQUE |
@@ -219,6 +498,8 @@ UNIQUE(product_id, specification_id). Backend kiểm tra thông số nằm trong
 Mỗi user có tối đa một giỏ lâu dài, giỏ có thể chưa tồn tại cho đến lần thêm đầu tiên. Không lưu tổng tiền vào carts.
 
 ### 3.12. cart_items
+
+Lưu số lượng của từng SKU trong giỏ. Giá hiện tại được đọc từ biến thể. **Đã có migration.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -229,6 +510,8 @@ Mỗi user có tối đa một giỏ lâu dài, giỏ có thể chưa tồn tạ
 UNIQUE(cart_id, product_variant_id). Thêm cùng biến thể thì cộng số lượng. Giá giỏ đọc từ database; giỏ không giữ hàng và không khóa giá. Kiểm tra lại tình trạng bán, giá và tồn khi checkout.
 
 ### 3.13. orders
+
+Lưu thông tin tổng hợp của đơn COD, gồm mã đơn, số tiền, trạng thái và bản chụp địa chỉ nhận hàng. **Thiết kế dự kiến.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -262,6 +545,8 @@ Phí vận chuyển mặc định 0 cho demo, hiển thị rõ; có thể thay b
 
 ### 3.14. order_items
 
+Lưu từng dòng hàng, gồm bản chụp tên, SKU, giá bán và số lượng tại thời điểm mua. **Thiết kế dự kiến.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | order_id | FK orders | NN |
@@ -280,6 +565,8 @@ Một đơn phải có ít nhất một item; đảm bảo bằng service/transa
 
 ### 3.15. order_status_histories
 
+Ghi nhật ký khởi tạo và các lần chuyển trạng thái, cùng người thực hiện nếu có. **Thiết kế dự kiến.**
+
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
 | order_id | FK orders | NN |
@@ -291,6 +578,8 @@ Một đơn phải có ít nhất một item; đảm bảo bằng service/transa
 INDEX(order_id, created_at). Lần tạo đơn ghi NULL -> pending. Mọi thay đổi trạng thái ghi lịch sử trong cùng transaction; không cho sửa lịch sử qua CRUD thông thường.
 
 ### 3.16. payments
+
+Lưu bản ghi thanh toán và thời điểm thu tiền của đơn COD. **Thiết kế dự kiến.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -308,6 +597,8 @@ Chuyển đơn shipping -> completed đồng thời xác nhận đã thu COD tro
 Đơn cancelled có payment cancelled và payment_status vẫn unpaid. Chưa triển khai thanh toán từng phần/hoàn tiền.
 
 ### 3.17. banners
+
+Lưu ảnh, liên kết, vị trí và thời gian hiển thị banner trên trang chủ. **Thiết kế dự kiến.**
 
 | Cột | Kiểu | Ràng buộc / mục đích |
 |---|---|---|
@@ -342,10 +633,10 @@ Soft delete products không chạy CASCADE, các biến thể vẫn cần đư�
 
 ## 5. Checkout và toàn vẹn tồn kho
 
-1. Xác thực user đang hoạt động và địa chỉ thuộc user.
+1. Xác thực user đang hoạt động.
 2. Khóa giỏ của user trong transaction; mọi thao tác sửa giỏ cũng dùng cùng quy ước khóa.
 3. Nếu checkout_token đã tồn tại, xác nhận đúng user và cùng payload rồi trả đơn cũ; xung đột UNIQUE được xử lý bằng đọc lại an toàn, không tạo thêm đơn.
-4. Đọc cart_items, khóa các product_variants theo thứ tự id tăng dần bằng khóa ghi trong transaction.
+4. Với yêu cầu mới, kiểm tra địa chỉ còn thuộc user. Đọc cart_items rồi khóa các product_variants theo thứ tự id tăng dần.
 5. Kiểm tra sản phẩm/danh mục/thương hiệu/biến thể được bán, số lượng hợp lệ và tồn đủ. Các luồng admin điều chỉnh tồn cũng phải đồng bộ bằng khóa hoặc cập nhật nguyên tử.
 6. Đọc lại giá từ database. Nếu giá khác giá khách vừa xác nhận, yêu cầu khách xác nhận lại trước khi tạo đơn; không tin giá client làm giá cuối cùng.
 7. Backend tính subtotal, shipping_fee, grand_total.
@@ -355,6 +646,28 @@ Soft delete products không chạy CASCADE, các biến thể vẫn cần đư�
 
 Không trừ tồn khi thêm giỏ. Bản đầu trừ tồn khi tạo đơn thành công.
 Không thêm inventory_movements ở v1; mọi điều chỉnh tồn đi qua service. Khi cần nhật ký kho đầy đủ sẽ bổ sung bảng này.
+
+### Luồng tạo đơn COD dự kiến
+
+```mermaid
+flowchart TD
+    start["Khách xác nhận đặt toàn bộ giỏ bằng COD"] --> authorize["Kiểm tra tài khoản đang hoạt động"]
+    authorize --> lockCart["Bắt đầu giao dịch và khóa giỏ"]
+    lockCart --> replay{"Token đã được sử dụng?"}
+    replay -->|Có| match{"Cùng khách và cùng payload?"}
+    match -->|Có| previous["Trả đơn đã tạo"]
+    match -->|Không| conflict["Từ chối yêu cầu xung đột"]
+    replay -->|Chưa| address["Kiểm tra địa chỉ còn thuộc khách"]
+    address --> checkStock["Khóa SKU theo ID và đọc lại giá, tồn"]
+    checkStock --> valid{"Giỏ, giá và tồn còn hợp lệ?"}
+    valid -->|Không| review["Kết thúc giao dịch và yêu cầu kiểm tra lại giỏ"]
+    valid -->|Có| total["Tính tổng tiền tại backend"]
+    total --> record["Tạo đơn, dòng hàng, lịch sử và bản ghi COD"]
+    record --> stock["Trừ tồn và xóa dòng giỏ đã đặt"]
+    stock --> commit["Commit giao dịch và trả mã đơn"]
+```
+
+Nếu một thao tác ghi thất bại, giao dịch rollback. Khi tạo đơn thành công, đơn ở trạng thái pending và chưa thu tiền. Sau khi giao xong và thu COD, quản trị viên xác nhận hoàn tất để ghi nhận thanh toán.
 
 ### Điểm cần chốt khi làm T07
 

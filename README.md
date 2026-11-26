@@ -13,6 +13,8 @@ Dự án website thương mại điện tử sử dụng Laravel REST API và Re
 - backend/: Laravel REST API
 - frontend/: React application
 
+Xem [ERD tổng thể và từ điển dữ liệu ShopHub](docs/design/shophub-erd.md) để tra cứu cấu trúc bảng, quan hệ và luồng tạo đơn COD.
+
 ## Trạng thái hiện tại
 
 - Đã khởi tạo backend và frontend.

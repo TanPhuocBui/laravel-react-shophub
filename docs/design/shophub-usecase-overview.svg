@@ -1,0 +1,113 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 1200" width="1080" height="1200" role="img" aria-labelledby="title description">
+<title id="title">Sơ đồ use case tổng thể ShopHub</title>
+<desc id="description">Ba tác nhân và các use case của thiết kế MVP ShopHub. Nét đứt chỉ các use case trong kế hoạch.</desc>
+<style>text{font-family:Arial,sans-serif;fill:#172338}.title{font-size:32px;font-weight:bold}.subtitle{font-size:20px;fill:#435671}.heading,.actor{font-size:21px;font-weight:bold}.action{font-size:18px;font-weight:bold}.code{font-size:15px;fill:#435671}.noteHeading{font-size:19px;font-weight:bold}.note,.legend{font-size:17px}.link{stroke:#516279;stroke-width:1.5}.separator{stroke:#d5dce6;stroke-width:1.5}ellipse{stroke-width:1.7}.done{fill:#eef5fc;stroke:#345776}.partial,.planned{fill:#fff9e9;stroke:#876018}.planned{stroke-dasharray:7 4}</style>
+<rect width="1080" height="1200" fill="white"/>
+<text x="40" y="47" class="title" text-anchor="start">Sơ đồ use case tổng thể ShopHub</text>
+<text x="40" y="76" class="subtitle" text-anchor="start">Thiết kế MVP cho cửa hàng bán lẻ và thanh toán khi nhận hàng</text>
+<rect x="201" y="106" width="839" height="946" rx="12" fill="#f8fafc" stroke="#34465f" stroke-width="2"/>
+<line x1="215" y1="363" x2="1024" y2="363" class="separator"/>
+<line x1="215" y1="680" x2="1024" y2="680" class="separator"/>
+<text x="224" y="127" class="heading" text-anchor="start">Cửa hàng và tài khoản</text>
+<g fill="none" stroke="#263c56" stroke-width="3" stroke-linecap="round"><circle cx="102" cy="206" r="11"/><path d="M102 217 V248 M83 231 H121 M102 248 L87 267 M102 248 L117 267"/></g>
+<text x="102" y="295" class="actor" text-anchor="middle">Khách vãng lai</text>
+<line x1="122" y1="231" x2="270" y2="166" class="link"/>
+<ellipse cx="490" cy="166" rx="220" ry="23.5" class="done"/>
+<text x="490" y="164" class="action" text-anchor="middle">Xem, tìm và lọc sản phẩm</text>
+<text x="490" y="181" class="code" text-anchor="middle">UC23–UC25</text>
+<line x1="122" y1="231" x2="270" y2="218" class="link"/>
+<ellipse cx="490" cy="218" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="216" class="action" text-anchor="middle">Xem chính sách mua hàng</text>
+<text x="490" y="233" class="code" text-anchor="middle">UC27</text>
+<line x1="122" y1="231" x2="270" y2="270" class="link"/>
+<ellipse cx="490" cy="270" rx="220" ry="23.5" class="done"/>
+<text x="490" y="268" class="action" text-anchor="middle">Đăng ký tài khoản khách hàng</text>
+<text x="490" y="285" class="code" text-anchor="middle">UC01</text>
+<line x1="122" y1="231" x2="270" y2="322" class="link"/>
+<ellipse cx="490" cy="322" rx="220" ry="23.5" class="done"/>
+<text x="490" y="320" class="action" text-anchor="middle">Đăng nhập</text>
+<text x="490" y="337" class="code" text-anchor="middle">UC02</text>
+<rect x="728" y="148" width="298" height="159" rx="8" fill="white" stroke="#c9d4e1"/>
+<text x="741" y="174" class="noteHeading" text-anchor="start">Quyền truy cập công khai</text>
+<text x="741" y="200" class="note" text-anchor="start">Mọi người đều có thể xem catalog</text>
+<text x="741" y="223" class="note" text-anchor="start">và chính sách mua hàng.</text>
+<text x="741" y="246" class="note" text-anchor="start">Đăng ký tạo tài khoản khách hàng.</text>
+<text x="741" y="269" class="note" text-anchor="start">Người có tài khoản đăng nhập</text>
+<text x="741" y="292" class="note" text-anchor="start">bằng tài khoản đang hoạt động.</text>
+<text x="224" y="392" class="heading" text-anchor="start">Mua hàng và theo dõi đơn</text>
+<g fill="none" stroke="#263c56" stroke-width="3" stroke-linecap="round"><circle cx="102" cy="507" r="11"/><path d="M102 518 V549 M83 532 H121 M102 549 L87 568 M102 549 L117 568"/></g>
+<text x="102" y="596" class="actor" text-anchor="middle">Khách hàng</text>
+<line x1="122" y1="532" x2="270" y2="431" class="link"/>
+<ellipse cx="490" cy="431" rx="220" ry="23.5" class="partial"/>
+<text x="490" y="429" class="action" text-anchor="middle">Thêm SKU, xem và chỉnh sửa giỏ</text>
+<text x="490" y="446" class="code" text-anchor="middle">UC14–UC16 · Đã có UC14</text>
+<line x1="122" y1="532" x2="270" y2="483" class="link"/>
+<ellipse cx="490" cy="483" rx="220" ry="23.5" class="done"/>
+<text x="490" y="481" class="action" text-anchor="middle">Quản lý sổ địa chỉ giao hàng</text>
+<text x="490" y="498" class="code" text-anchor="middle">UC17</text>
+<line x1="122" y1="532" x2="270" y2="535" class="link"/>
+<ellipse cx="490" cy="535" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="533" class="action" text-anchor="middle">Đặt hàng COD</text>
+<text x="490" y="550" class="code" text-anchor="middle">UC18</text>
+<line x1="122" y1="532" x2="270" y2="587" class="link"/>
+<ellipse cx="490" cy="587" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="585" class="action" text-anchor="middle">Xem đơn và theo dõi trạng thái</text>
+<text x="490" y="602" class="code" text-anchor="middle">UC19–UC20</text>
+<line x1="122" y1="532" x2="270" y2="639" class="link"/>
+<ellipse cx="490" cy="639" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="637" class="action" text-anchor="middle">Hủy đơn của mình</text>
+<text x="490" y="654" class="code" text-anchor="middle">UC26</text>
+<rect x="728" y="438" width="298" height="205" rx="8" fill="white" stroke="#c9d4e1"/>
+<text x="741" y="464" class="noteHeading" text-anchor="start">Đặt hàng COD</text>
+<text x="741" y="490" class="note" text-anchor="start">Khách chọn địa chỉ của mình</text>
+<text x="741" y="513" class="note" text-anchor="start">và xác nhận đặt toàn bộ giỏ.</text>
+<text x="741" y="536" class="note" text-anchor="start">Hệ thống kiểm tra lại giá và tồn</text>
+<text x="741" y="559" class="note" text-anchor="start">trước khi tạo đơn và trừ tồn.</text>
+<text x="741" y="582" class="note" text-anchor="start">Khách chỉ xem đơn của mình</text>
+<text x="741" y="605" class="note" text-anchor="start">và chỉ hủy khi đơn chờ xác nhận,</text>
+<text x="741" y="628" class="note" text-anchor="start">chưa thu tiền.</text>
+<text x="224" y="709" class="heading" text-anchor="start">Quản trị cửa hàng</text>
+<g fill="none" stroke="#263c56" stroke-width="3" stroke-linecap="round"><circle cx="102" cy="868" r="11"/><path d="M102 879 V910 M83 893 H121 M102 910 L87 929 M102 910 L117 929"/></g>
+<text x="102" y="957" class="actor" text-anchor="middle">Quản trị viên</text>
+<line x1="122" y1="893" x2="270" y2="748" class="link"/>
+<ellipse cx="490" cy="748" rx="220" ry="23.5" class="done"/>
+<text x="490" y="746" class="action" text-anchor="middle">Quản lý danh mục và thương hiệu</text>
+<text x="490" y="763" class="code" text-anchor="middle">UC05–UC06</text>
+<line x1="122" y1="893" x2="270" y2="800" class="link"/>
+<ellipse cx="490" cy="800" rx="220" ry="23.5" class="done"/>
+<text x="490" y="798" class="action" text-anchor="middle">Quản lý sản phẩm, SKU, giá và tồn</text>
+<text x="490" y="815" class="code" text-anchor="middle">UC07–UC08</text>
+<line x1="122" y1="893" x2="270" y2="852" class="link"/>
+<ellipse cx="490" cy="852" rx="220" ry="23.5" class="done"/>
+<text x="490" y="850" class="action" text-anchor="middle">Quản lý thông số và công bố sản phẩm</text>
+<text x="490" y="867" class="code" text-anchor="middle">UC09–UC11</text>
+<line x1="122" y1="893" x2="270" y2="904" class="link"/>
+<ellipse cx="490" cy="904" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="902" class="action" text-anchor="middle">Xem và xử lý đơn hàng</text>
+<text x="490" y="919" class="code" text-anchor="middle">UC21–UC22</text>
+<line x1="122" y1="893" x2="270" y2="956" class="link"/>
+<ellipse cx="490" cy="956" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="954" class="action" text-anchor="middle">Quản lý banner trang chủ</text>
+<text x="490" y="971" class="code" text-anchor="middle">UC28</text>
+<line x1="122" y1="893" x2="270" y2="1008" class="link"/>
+<ellipse cx="490" cy="1008" rx="220" ry="23.5" class="planned"/>
+<text x="490" y="1006" class="action" text-anchor="middle">Xem doanh thu và sản phẩm bán chạy</text>
+<text x="490" y="1023" class="code" text-anchor="middle">UC29</text>
+<rect x="728" y="790" width="298" height="205" rx="8" fill="white" stroke="#c9d4e1"/>
+<text x="741" y="816" class="noteHeading" text-anchor="start">Xử lý đơn COD</text>
+<text x="741" y="842" class="note" text-anchor="start">Xác nhận đơn → chuyển giao →</text>
+<text x="741" y="865" class="note" text-anchor="start">hoàn tất khi giao xong và thu COD.</text>
+<text x="741" y="888" class="note" text-anchor="start">Admin được hủy đơn chờ xác nhận</text>
+<text x="741" y="911" class="note" text-anchor="start">hoặc đã xác nhận, khi chưa thu tiền.</text>
+<text x="741" y="934" class="note" text-anchor="start">Hủy hợp lệ thì hoàn tồn một lần.</text>
+<text x="741" y="957" class="note" text-anchor="start">Doanh thu tính từ đơn hoàn tất</text>
+<text x="741" y="980" class="note" text-anchor="start">và đã thu tiền.</text>
+<ellipse cx="61" cy="1090" rx="21" ry="10" class="done"/>
+<text x="94" y="1096" class="legend" text-anchor="start">Đã có trên nhánh hiện tại</text>
+<ellipse cx="402" cy="1090" rx="21" ry="10" class="partial"/>
+<text x="435" y="1096" class="legend" text-anchor="start">Đã triển khai một phần</text>
+<ellipse cx="732" cy="1090" rx="21" ry="10" class="planned"/>
+<text x="765" y="1096" class="legend" text-anchor="start">Trong kế hoạch MVP</text>
+<text x="40" y="1134" class="legend" text-anchor="start">UC03–UC04 áp dụng cho khách hàng và quản trị viên đã có phiên đăng nhập.</text>
+<text x="40" y="1161" class="legend" text-anchor="start">UC14 đã có chức năng thêm SKU vào giỏ. UC15–UC16 thuộc kế hoạch MVP.</text>
+</svg>
